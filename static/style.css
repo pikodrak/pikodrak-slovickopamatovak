@@ -466,6 +466,19 @@ body {
     white-space: nowrap;
 }
 
+.word-stat {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-left: 4px;
+}
+.stat-bad { background: #ffebee; color: var(--danger); }
+.stat-med { background: #fff3e0; color: #e65100; }
+.stat-ok { background: #e8f5e9; color: var(--success);
+}
+
 .word-actions {
     display: flex;
     gap: 6px;

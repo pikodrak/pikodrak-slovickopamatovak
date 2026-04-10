@@ -147,7 +147,9 @@
             <p id="doneMessage"></p>
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-primary btn-lg" onclick="restart()">Procvičovat znovu</button>
-                {% if shared_token %}
+                {% if is_difficult is defined and is_difficult %}
+                <a href="{{ url_for('difficult_words') }}" class="btn btn-outline btn-lg">Zpět na obtížná</a>
+                {% elif shared_token %}
                 <a href="{{ url_for('shared_set', token=shared_token) }}" class="btn btn-outline btn-lg">Zpět na sadu</a>
                 {% else %}
                 <a href="{{ url_for('view_set', set_id=ws.id) }}" class="btn btn-outline btn-lg">Zpět na sadu</a>
@@ -255,6 +257,14 @@ function showCard() {
     }
 }
 
+function logResult(wordId, correct) {
+    fetch('/practice/log', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({word_id: wordId, correct: correct})
+    }).catch(() => {});
+}
+
 // --- FLIP mode ---
 function flipCard() {
     if (isFlipped || mode !== 'flip') return;
@@ -264,6 +274,7 @@ function flipCard() {
 }
 
 function answer(correct) {
+    logResult(queue[currentIndex].id, correct);
     if (!correct) wrongWords.push(queue[currentIndex]);
     currentIndex++;
     showCard();
@@ -304,10 +315,11 @@ function checkAnswer() {
         var correctLine = result !== 'correct' ? '<br><strong>' + data.correct_answer + '</strong>' : '';
         fb.innerHTML = icon + (data.note || '') + correctLine;
 
+        var isCorrectResult = result === 'correct' || result === 'almost';
+        logResult(queue[currentIndex].id, isCorrectResult);
         if (result === 'wrong') {
             wrongWords.push(queue[currentIndex]);
         }
-        // "almost" counts as correct enough - don't repeat
 
         document.getElementById('writeButtons').style.display = 'none';
         document.getElementById('writeNextButtons').style.display = 'flex';
@@ -315,6 +327,7 @@ function checkAnswer() {
     .catch(err => {
         // Fallback: simple string comparison
         var isCorrect = userAnswer.toLowerCase() === currentCorrectAnswer.toLowerCase();
+        logResult(queue[currentIndex].id, isCorrect);
         input.className = 'write-input ' + (isCorrect ? 'correct' : 'wrong');
         var fb = document.getElementById('aiFeedback');
         fb.className = 'ai-feedback ' + (isCorrect ? 'correct' : 'wrong');

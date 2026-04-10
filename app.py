@@ -83,6 +83,15 @@ class Word(db.Model):
     set_id = db.Column(db.Integer, db.ForeignKey('word_set.id'), nullable=False)
 
 
+class PracticeResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    word_id = db.Column(db.Integer, db.ForeignKey('word.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    correct = db.Column(db.Boolean, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    word = db.relationship('Word', backref=db.backref('results', lazy=True, cascade='all, delete-orphan'))
+
+
 class ApiToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
@@ -219,7 +228,23 @@ def view_set(set_id):
     if ws.user_id != current_user.id:
         flash('Nemáte přístup k této sadě.', 'error')
         return redirect(url_for('dashboard'))
-    return render_template('view_set.html', ws=ws)
+    # Get per-word stats
+    word_ids = [w.id for w in ws.words]
+    word_stats = {}
+    if word_ids:
+        rows = db.session.execute(db.text("""
+            SELECT word_id,
+                   COUNT(*) as total,
+                   SUM(CASE WHEN correct = 0 THEN 1 ELSE 0 END) as wrong
+            FROM practice_result
+            WHERE user_id = :uid AND word_id IN ({})
+            GROUP BY word_id
+        """.format(','.join(str(i) for i in word_ids))),
+            {'uid': current_user.id}).fetchall()
+        for r in rows:
+            word_stats[r.word_id] = {'total': r.total, 'wrong': r.wrong,
+                                      'pct': round(100 * r.wrong / r.total) if r.total else 0}
+    return render_template('view_set.html', ws=ws, word_stats=word_stats)
 
 
 @app.route('/set/<int:set_id>/edit', methods=['GET', 'POST'])
@@ -633,6 +658,75 @@ def practice(set_id):
         return redirect(url_for('view_set', set_id=set_id))
     words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
     return render_template('practice.html', ws=ws, words=words, shared_token=None)
+
+
+# --- Practice stats ---
+
+@app.route('/practice/log', methods=['POST'])
+def log_practice_result():
+    """Log a practice result. Works for both logged-in users and shared practice."""
+    if not current_user.is_authenticated:
+        return jsonify({'ok': True})  # silently skip for anonymous
+    data = request.get_json(silent=True) or {}
+    word_id = data.get('word_id')
+    correct = data.get('correct', False)
+    if not word_id:
+        return jsonify({'error': 'missing word_id'}), 400
+    word = db.session.get(Word, word_id)
+    if not word:
+        return jsonify({'error': 'word not found'}), 404
+    pr = PracticeResult(word_id=word_id, user_id=current_user.id, correct=bool(correct))
+    db.session.add(pr)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+def get_difficult_words(user_id, min_attempts=2, limit=50):
+    """Get words with highest error rate for a user."""
+    results = db.session.execute(db.text("""
+        SELECT w.id, w.word_a, w.word_b, w.set_id, ws.name as set_name,
+               ws.lang_a, ws.lang_b,
+               COUNT(*) as total,
+               SUM(CASE WHEN pr.correct = 0 THEN 1 ELSE 0 END) as wrong,
+               ROUND(100.0 * SUM(CASE WHEN pr.correct = 0 THEN 1 ELSE 0 END) / COUNT(*), 0) as error_pct
+        FROM practice_result pr
+        JOIN word w ON pr.word_id = w.id
+        JOIN word_set ws ON w.set_id = ws.id
+        WHERE pr.user_id = :uid
+        GROUP BY w.id
+        HAVING total >= :min_att AND wrong > 0
+        ORDER BY error_pct DESC, wrong DESC
+        LIMIT :lim
+    """), {'uid': user_id, 'min_att': min_attempts, 'lim': limit}).fetchall()
+    return results
+
+
+@app.route('/difficult')
+@login_required
+def difficult_words():
+    words = get_difficult_words(current_user.id)
+    return render_template('difficult.html', words=words)
+
+
+@app.route('/difficult/practice')
+@login_required
+def practice_difficult():
+    rows = get_difficult_words(current_user.id, min_attempts=1, limit=100)
+    if not rows:
+        flash('Zatím nemáte žádná obtížná slovíčka.', 'error')
+        return redirect(url_for('difficult_words'))
+    words = [{'id': r.id, 'word_a': r.word_a, 'word_b': r.word_b} for r in rows]
+    # Build a fake WordSet-like object for the template
+    lang_a = rows[0].lang_a
+    lang_b = rows[0].lang_b
+    ws_data = type('WS', (), {
+        'id': 0, 'name': 'Obtížná slovíčka',
+        'lang_a': lang_a, 'lang_b': lang_b,
+        'lang_a_name': LANG_MAP.get(lang_a, lang_a),
+        'lang_b_name': LANG_MAP.get(lang_b, lang_b),
+        'share_token': None,
+    })()
+    return render_template('practice.html', ws=ws_data, words=words, shared_token=None, is_difficult=True)
 
 
 # --- Changelog ---

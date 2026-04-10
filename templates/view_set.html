@@ -61,6 +61,12 @@
                 <span class="word-czech">{{ word.word_a }}</span>
                 <span class="word-sep">=</span>
                 <span class="word-spanish">{{ word.word_b }}</span>
+                {% if word.id in word_stats %}
+                {% set st = word_stats[word.id] %}
+                <span class="word-stat {% if st.pct >= 50 %}stat-bad{% elif st.pct > 0 %}stat-med{% else %}stat-ok{% endif %}" title="{{ st.wrong }}/{{ st.total }} špatně">
+                    {{ st.pct }}%
+                </span>
+                {% endif %}
             </div>
             <div class="word-actions">
                 {% if AI_ENABLED %}<button class="btn-icon" onclick="explainWord('{{ word.word_b|e }}', '{{ ws.lang_b_name|e }}')" title="Vysvětlit">&#128161;</button>{% endif %}

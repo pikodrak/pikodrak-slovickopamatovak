@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 — 2026-04-10
+
+### Přidáno
+- Statistiky procvičování
+  - Logování každé odpovědi (správně/špatně) při procvičování (kartičky i psaní)
+  - Chybovost zobrazena u každého slovíčka v sadě (barevné %)
+  - Stránka "Obtížná slovíčka" — přehled slov s nejvyšší chybovostí
+  - Procvičování obtížných slovíček ze všech sad najednou
+  - Odkaz "Obtížná" v navigaci
+
 ## 0.4.0 — 2026-04-10
 
 ### Přidáno

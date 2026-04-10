@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Obtížná slovíčka — {{ APP_NAME }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('dashboard') }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block head %}
+<style>
+    .diff-row {
+        display: flex; align-items: center; padding: 12px 0;
+        border-bottom: 1px solid var(--border); gap: 10px;
+    }
+    .diff-row:last-child { border-bottom: none; }
+    .diff-words { flex: 1; min-width: 0; }
+    .diff-words .w-a { font-weight: 600; }
+    .diff-words .w-b { color: var(--primary); }
+    .diff-words .w-set { font-size: 0.7rem; color: var(--text-light); margin-top: 2px; }
+    .diff-stats { text-align: right; flex-shrink: 0; }
+    .diff-pct {
+        font-size: 1.1rem; font-weight: 700;
+    }
+    .diff-pct.high { color: var(--danger); }
+    .diff-pct.med { color: #e65100; }
+    .diff-pct.low { color: var(--success); }
+    .diff-detail { font-size: 0.7rem; color: var(--text-light); }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <div class="page-header-row">
+            <h1>Obtížná slovíčka</h1>
+        </div>
+        <div style="font-size:0.85rem; color:var(--text-light); margin-top:4px;">
+            Slovíčka s nejvyšší chybovostí
+        </div>
+    </div>
+
+    {% if words %}
+    <div style="margin-bottom: 16px;">
+        <a href="{{ url_for('practice_difficult') }}" class="btn btn-success btn-block btn-lg">
+            Procvičovat obtížná ({{ words|length }})
+        </a>
+    </div>
+
+    <div class="card">
+        {% for w in words %}
+        <div class="diff-row">
+            <div class="diff-words">
+                <div><span class="w-a">{{ w.word_a }}</span> = <span class="w-b">{{ w.word_b }}</span></div>
+                <div class="w-set">{{ w.set_name }}</div>
+            </div>
+            <div class="diff-stats">
+                <div class="diff-pct {% if w.error_pct >= 60 %}high{% elif w.error_pct >= 30 %}med{% else %}low{% endif %}">
+                    {{ w.error_pct|int }}%
+                </div>
+                <div class="diff-detail">{{ w.wrong }}/{{ w.total }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Zatím nemáte žádná obtížná slovíčka.</p>
+        <p style="font-size:0.85rem; color:var(--text-light);">Začněte procvičovat a statistiky se budou sbírat.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
