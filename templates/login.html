@@ -27,5 +27,8 @@
             Nemáte účet? <a href="{{ url_for('register') }}">Zaregistrujte se</a>
         </div>
     </div>
+    <div style="margin-top:20px; font-size:0.75rem; color:var(--text-light);">
+        v{{ APP_VERSION }} &middot; <a href="{{ url_for('changelog') }}" style="color:var(--text-light);">Changelog</a>
+    </div>
 </div>
 {% endblock %}

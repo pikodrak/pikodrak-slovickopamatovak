@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Changelog — {{ APP_NAME }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block head %}
+<style>
+    .changelog h1 { font-size: 1.3rem; margin-bottom: 20px; }
+    .changelog h2 { font-size: 1.1rem; color: var(--primary); margin: 24px 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--border); }
+    .changelog h3 { font-size: 0.95rem; color: var(--text); margin: 16px 0 8px; }
+    .changelog ul { margin: 0 0 8px 20px; font-size: 0.9rem; line-height: 1.7; color: var(--text); }
+    .changelog ul ul { margin: 2px 0 2px 20px; }
+    .changelog li { margin-bottom: 2px; }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header" style="margin-bottom: 8px;">
+        <div class="page-header-row">
+            <h1>Changelog</h1>
+            <span style="font-size:0.85rem; color:var(--text-light);">v{{ APP_VERSION }}</span>
+        </div>
+    </div>
+    <div class="card changelog">
+        {% set ns = namespace(in_ul=false, in_sub=false) %}
+        {% for line in raw.split('\n') %}
+            {% set stripped = line.strip() %}
+            {% if stripped.startswith('# ') and not stripped.startswith('## ') %}
+                {% if ns.in_sub %}</ul>{% set ns.in_sub = false %}{% endif %}
+                {% if ns.in_ul %}</ul>{% set ns.in_ul = false %}{% endif %}
+            {% elif stripped.startswith('## ') %}
+                {% if ns.in_sub %}</ul>{% set ns.in_sub = false %}{% endif %}
+                {% if ns.in_ul %}</ul>{% set ns.in_ul = false %}{% endif %}
+                <h2>{{ stripped[3:] }}</h2>
+            {% elif stripped.startswith('### ') %}
+                {% if ns.in_sub %}</ul>{% set ns.in_sub = false %}{% endif %}
+                {% if ns.in_ul %}</ul>{% set ns.in_ul = false %}{% endif %}
+                <h3>{{ stripped[4:] }}</h3>
+            {% elif stripped.startswith('- ') and not line.startswith('  ') %}
+                {% if ns.in_sub %}</ul>{% set ns.in_sub = false %}{% endif %}
+                {% if not ns.in_ul %}<ul>{% set ns.in_ul = true %}{% endif %}
+                <li>{{ stripped[2:] }}</li>
+            {% elif stripped.startswith('- ') and line.startswith('  ') %}
+                {% if not ns.in_sub %}<ul>{% set ns.in_sub = true %}{% endif %}
+                <li>{{ stripped[2:] }}</li>
+            {% elif stripped == '' %}
+                {% if ns.in_sub %}</ul>{% set ns.in_sub = false %}{% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if ns.in_sub %}</ul>{% endif %}
+        {% if ns.in_ul %}</ul>{% endif %}
+    </div>
+</div>
+{% endblock %}

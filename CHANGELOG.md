@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0 — 2026-04-10
+
+### Přidáno
+- Verzování aplikace (v config.ini, zobrazeno v navbaru a na login stránce)
+- Stránka s changelogem (/changelog) přístupná z navbaru i login stránky
+- README.md s popisem projektu, instalací a konfigurací
+
 ## 2026-04-10 (2)
 
 ### Přidáno

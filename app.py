@@ -13,6 +13,7 @@ cfg = configparser.ConfigParser()
 cfg.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini'), encoding='utf-8')
 
 APP_NAME = cfg.get('app', 'name', fallback='SlovíčkoPamatovák')
+APP_VERSION = cfg.get('app', 'version', fallback='0.0.0')
 SECRET_KEY = cfg.get('app', 'secret_key', fallback='') or os.environ.get('SECRET_KEY', '') or secrets.token_hex(32)
 DEBUG = cfg.getboolean('app', 'debug', fallback=True)
 HOST = cfg.get('app', 'host', fallback='0.0.0.0')
@@ -114,7 +115,8 @@ def load_user(user_id):
 
 @app.context_processor
 def inject_globals():
-    return {'APP_NAME': APP_NAME, 'LANGUAGES': LANGUAGES, 'LANG_MAP': LANG_MAP,
+    return {'APP_NAME': APP_NAME, 'APP_VERSION': APP_VERSION,
+            'LANGUAGES': LANGUAGES, 'LANG_MAP': LANG_MAP,
             'DEFAULT_LANG_A': DEFAULT_LANG_A, 'DEFAULT_LANG_B': DEFAULT_LANG_B}
 
 
@@ -625,6 +627,16 @@ def practice(set_id):
         return redirect(url_for('view_set', set_id=set_id))
     words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
     return render_template('practice.html', ws=ws, words=words, shared_token=None)
+
+
+# --- Changelog ---
+
+@app.route('/changelog')
+def changelog():
+    changelog_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'CHANGELOG.md')
+    with open(changelog_path, 'r', encoding='utf-8') as f:
+        raw = f.read()
+    return render_template('changelog.html', raw=raw)
 
 
 # --- Init ---
