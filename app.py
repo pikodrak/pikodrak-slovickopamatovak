@@ -1096,6 +1096,52 @@ def ai_chat_endpoint():
         return jsonify({'error': str(e)}), 500
 
 
+# --- TTS ---
+
+TTS_CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'tts')
+os.makedirs(TTS_CACHE_DIR, exist_ok=True)
+
+
+@app.route('/tts/<lang>/<path:text>')
+def tts(lang, text):
+    import hashlib
+    text = text.strip()[:200]
+    # Cache filename based on lang + text hash
+    cache_key = hashlib.md5(f'{lang}:{text}'.encode()).hexdigest()
+    cache_path = os.path.join(TTS_CACHE_DIR, f'{cache_key}.mp3')
+
+    if os.path.exists(cache_path):
+        return app.send_static_file(f'tts/{cache_key}.mp3')
+
+    if not OPENAI_API_KEY:
+        return 'TTS not available', 503
+
+    # Map lang codes to OpenAI TTS voice
+    voice = 'nova'  # good for most languages
+    try:
+        req = urllib.request.Request(
+            'https://api.openai.com/v1/audio/speech',
+            data=json.dumps({
+                'model': 'tts-1',
+                'input': text,
+                'voice': voice,
+                'speed': 0.9,
+            }).encode(),
+            headers={
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            audio = resp.read()
+        with open(cache_path, 'wb') as f:
+            f.write(audio)
+        from flask import Response
+        return Response(audio, mimetype='audio/mpeg')
+    except Exception:
+        return 'TTS error', 500
+
+
 # --- Offline page + SW ---
 
 @app.route('/offline')

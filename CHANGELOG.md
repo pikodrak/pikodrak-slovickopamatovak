@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.3 — 2026-04-10
+
+### Opraveno
+- TTS přepnuto z browser SpeechSynthesis na server-side OpenAI TTS
+  - Vždy mluví správným cizím jazykem (ne česky)
+  - Audio se cachuje jako MP3 na serveru (první přehrání zavolá API, další z cache)
+  - Funguje na všech zařízeních bez instalace hlasů
+
 ## 0.8.2 — 2026-04-10
 
 ### Přidáno

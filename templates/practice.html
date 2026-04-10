@@ -435,38 +435,17 @@ function restart() {
     document.getElementById('setup').style.display = 'block';
 }
 
-// --- TTS ---
-var LANG_CODES = {
-    'cs': 'cs-CZ', 'es': 'es-ES', 'en': 'en-US', 'de': 'de-DE',
-    'fr': 'fr-FR', 'it': 'it-IT', 'pt': 'pt-PT', 'ru': 'ru-RU',
-    'pl': 'pl-PL', 'sk': 'sk-SK', 'nl': 'nl-NL', 'uk': 'uk-UA',
-    'hr': 'hr-HR', 'ja': 'ja-JP', 'zh': 'zh-CN', 'ko': 'ko-KR',
-    'ar': 'ar-SA', 'tr': 'tr-TR'
-};
+// --- TTS (server-side OpenAI) ---
+var currentAudio = null;
 var currentFrontLangCode = '', currentBackLangCode = '';
+var LANG_A_CODE = {{ ws.lang_a|tojson }};
+var LANG_B_CODE = {{ ws.lang_b|tojson }};
 
-var origShowCard = showCard;
-showCard = function() {
-    // Set lang codes BEFORE origShowCard (which renders the card)
-    if (currentIndex < queue.length) {
-        var dir = getCardDirection(queue[currentIndex]);
-        if (dir.frontLang === LANG_A) {
-            currentFrontLangCode = {{ ws.lang_a|tojson }};
-            currentBackLangCode = {{ ws.lang_b|tojson }};
-        } else {
-            currentFrontLangCode = {{ ws.lang_b|tojson }};
-            currentBackLangCode = {{ ws.lang_a|tojson }};
-        }
-    }
-    origShowCard();
-    // Auto-speak foreign word on front after card is rendered
-    if (currentIndex < queue.length && mode === 'flip') {
-        var d = getCardDirection(queue[currentIndex]);
-        if (d.frontLang === LANG_B) {
-            autoSpeakWord(d.front, currentFrontLangCode);
-        }
-    }
-};
+function playTTS(text, langCode) {
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    currentAudio = new Audio('/tts/' + langCode + '/' + encodeURIComponent(text));
+    currentAudio.play().catch(function(){});
+}
 
 function toggleAutoSpeak() {
     autoSpeak = !autoSpeak;
@@ -475,44 +454,47 @@ function toggleAutoSpeak() {
     btn.innerHTML = autoSpeak ? '&#128264;' : '&#128263;';
 }
 
-function findVoice(langCode) {
-    var bcp = LANG_CODES[langCode] || langCode;
-    var voices = window.speechSynthesis.getVoices();
-    // Exact match first
-    var v = voices.find(function(v) { return v.lang === bcp; });
-    // Prefix match (es-ES matches es-*)
-    if (!v) v = voices.find(function(v) { return v.lang.startsWith(bcp.split('-')[0]); });
-    return v || null;
-}
-
-function speakText(text, langCode) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = LANG_CODES[langCode] || langCode;
-    var voice = findVoice(langCode);
-    if (voice) u.voice = voice;
-    u.rate = 0.85;
-    window.speechSynthesis.speak(u);
-}
-
-function autoSpeakWord(text, langCode) {
-    if (!autoSpeak) return;
-    speakText(text, langCode);
-}
-
 function speakCurrent(side) {
     var text = side === 'front'
         ? document.getElementById('frontWord').textContent
         : document.getElementById('backWord').textContent;
     var lang = side === 'front' ? currentFrontLangCode : currentBackLangCode;
-    speakText(text, lang);
+    playTTS(text, lang);
 }
 
-// Preload voices (Chrome loads them async)
-if ('speechSynthesis' in window) {
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.getVoices(); };
-}
+// Wrap showCard to set lang codes and auto-speak
+var origShowCard = showCard;
+showCard = function() {
+    if (currentIndex < queue.length) {
+        var dir = getCardDirection(queue[currentIndex]);
+        if (dir.frontLang === LANG_A) {
+            currentFrontLangCode = LANG_A_CODE;
+            currentBackLangCode = LANG_B_CODE;
+        } else {
+            currentFrontLangCode = LANG_B_CODE;
+            currentBackLangCode = LANG_A_CODE;
+        }
+    }
+    origShowCard();
+    // Auto-speak foreign word when it's on the front
+    if (autoSpeak && currentIndex < queue.length && mode === 'flip') {
+        var d = getCardDirection(queue[currentIndex]);
+        if (d.frontLang === LANG_B) {
+            playTTS(d.front, LANG_B_CODE);
+        }
+    }
+};
+
+// Wrap flipCard to auto-speak foreign word on back
+var origFlipCard = flipCard;
+flipCard = function() {
+    origFlipCard();
+    if (autoSpeak && isFlipped && mode === 'flip') {
+        var backLang = document.getElementById('backLang').textContent;
+        if (backLang === LANG_B) {
+            playTTS(document.getElementById('backWord').textContent, LANG_B_CODE);
+        }
+    }
+};
 </script>
 {% endblock %}

@@ -5,3 +5,4 @@ instance/
 venv/
 .env
 config.ini
+static/tts/

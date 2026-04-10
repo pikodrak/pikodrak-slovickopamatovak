@@ -232,33 +232,11 @@ document.getElementById('explainModal').addEventListener('click', function(e) {
 });
 
 // --- TTS ---
-var LANG_CODES = {
-    'cs': 'cs-CZ', 'es': 'es-ES', 'en': 'en-US', 'de': 'de-DE',
-    'fr': 'fr-FR', 'it': 'it-IT', 'pt': 'pt-PT', 'ru': 'ru-RU',
-    'pl': 'pl-PL', 'sk': 'sk-SK', 'nl': 'nl-NL', 'uk': 'uk-UA',
-    'hr': 'hr-HR', 'ja': 'ja-JP', 'zh': 'zh-CN', 'ko': 'ko-KR',
-    'ar': 'ar-SA', 'tr': 'tr-TR'
-};
-
+var currentAudio = null;
 function speak(text, langCode) {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    u.lang = LANG_CODES[langCode] || langCode;
-    // Find matching voice explicitly
-    var voices = window.speechSynthesis.getVoices();
-    var bcp = LANG_CODES[langCode] || langCode;
-    var voice = voices.find(function(v) { return v.lang === bcp; })
-             || voices.find(function(v) { return v.lang.startsWith(bcp.split('-')[0]); });
-    if (voice) u.voice = voice;
-    u.rate = 0.85;
-    window.speechSynthesis.speak(u);
-}
-
-// Preload voices
-if ('speechSynthesis' in window) {
-    window.speechSynthesis.getVoices();
-    window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.getVoices(); };
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    currentAudio = new Audio('/tts/' + langCode + '/' + encodeURIComponent(text));
+    currentAudio.play().catch(function(){});
 }
 </script>
 {% endblock %}
