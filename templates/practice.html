@@ -78,13 +78,16 @@
     <!-- Practice area -->
     <div id="practiceArea" style="display:none;">
         <div class="practice-header">
-            <div class="practice-progress">
-                <span id="progressText">1 / {{ words|length }}</span>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="practice-progress" style="flex:1;">
+                    <span id="progressText">1 / {{ words|length }}</span>
+                </div>
+                <button class="btn-speak-toggle active" id="autoSpeakBtn" onclick="toggleAutoSpeak()" title="Automatická výslovnost">&#128264;</button>
+                <button class="btn btn-outline btn-sm" onclick="endEarly()" style="font-size:0.8rem;">Ukončit</button>
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="endEarly()" style="margin-top:8px; font-size:0.8rem;">Ukončit</button>
         </div>
 
         <!-- FLIP mode -->
@@ -182,6 +185,7 @@ let roundNumber = 1;
 let currentCorrectAnswer = '';
 let currentAnswerLang = '';
 let writeAnswered = false;
+let autoSpeak = true;
 
 function setDirection(dir) {
     direction = dir;
@@ -282,6 +286,12 @@ function flipCard() {
     isFlipped = true;
     document.getElementById('flashcard').classList.add('flipped');
     document.getElementById('answerButtons').style.display = 'flex';
+    // Auto-speak foreign word on back
+    var backText = document.getElementById('backWord').textContent;
+    var backIsB = document.getElementById('backLang').textContent === LANG_B;
+    if (backIsB) {
+        autoSpeakWord(backText, currentBackLangCode);
+    }
 }
 
 function answer(correct) {
@@ -437,10 +447,9 @@ var currentFrontLangCode = '', currentBackLangCode = '';
 
 var origShowCard = showCard;
 showCard = function() {
-    origShowCard();
+    // Set lang codes BEFORE origShowCard (which renders the card)
     if (currentIndex < queue.length) {
         var dir = getCardDirection(queue[currentIndex]);
-        // Determine lang codes from direction
         if (dir.frontLang === LANG_A) {
             currentFrontLangCode = {{ ws.lang_a|tojson }};
             currentBackLangCode = {{ ws.lang_b|tojson }};
@@ -449,7 +458,31 @@ showCard = function() {
             currentBackLangCode = {{ ws.lang_a|tojson }};
         }
     }
+    origShowCard();
+    // Auto-speak foreign word on front after card is rendered
+    if (currentIndex < queue.length && mode === 'flip') {
+        var d = getCardDirection(queue[currentIndex]);
+        if (d.frontLang === LANG_B) {
+            autoSpeakWord(d.front, currentFrontLangCode);
+        }
+    }
 };
+
+function toggleAutoSpeak() {
+    autoSpeak = !autoSpeak;
+    var btn = document.getElementById('autoSpeakBtn');
+    btn.classList.toggle('active', autoSpeak);
+    btn.innerHTML = autoSpeak ? '&#128264;' : '&#128263;';
+}
+
+function autoSpeakWord(text, langCode) {
+    if (!autoSpeak || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = LANG_CODES[langCode] || langCode;
+    u.rate = 0.85;
+    window.speechSynthesis.speak(u);
+}
 
 function speakCurrent(side) {
     if (!('speechSynthesis' in window)) return;

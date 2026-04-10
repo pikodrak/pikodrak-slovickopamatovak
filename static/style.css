@@ -567,6 +567,23 @@ body {
     opacity: 1;
 }
 
+.btn-speak-toggle {
+    background: none;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px 8px;
+    opacity: 0.4;
+    transition: all 0.15s;
+}
+
+.btn-speak-toggle.active {
+    opacity: 1;
+    border-color: var(--primary);
+    background: #fff3e0;
+}
+
 .word-actions button, .word-actions .btn-icon {
     background: none;
     border: none;

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.2 — 2026-04-10
+
+### Přidáno
+- Automatická výslovnost cizího slova při procvičování
+  - Zapnuto by default, přehraje španělské/cizí slovo automaticky
+  - Při zobrazení kartičky (pokud přední strana je cizí jazyk)
+  - Při otočení kartičky (pokud zadní strana je cizí jazyk)
+  - Toggle tlačítko 🔈/🔇 vedle progress baru pro zapnutí/vypnutí
+
 ## 0.8.1 — 2026-04-10
 
 ### Změněno
