@@ -245,8 +245,20 @@ function speak(text, langCode) {
     window.speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
     u.lang = LANG_CODES[langCode] || langCode;
+    // Find matching voice explicitly
+    var voices = window.speechSynthesis.getVoices();
+    var bcp = LANG_CODES[langCode] || langCode;
+    var voice = voices.find(function(v) { return v.lang === bcp; })
+             || voices.find(function(v) { return v.lang.startsWith(bcp.split('-')[0]); });
+    if (voice) u.voice = voice;
     u.rate = 0.85;
     window.speechSynthesis.speak(u);
+}
+
+// Preload voices
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.getVoices(); };
 }
 </script>
 {% endblock %}
