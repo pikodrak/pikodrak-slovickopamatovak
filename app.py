@@ -1116,14 +1116,28 @@ def tts(lang, text):
     if not OPENAI_API_KEY:
         return 'TTS not available', 503
 
-    # Map lang codes to OpenAI TTS voice
-    voice = 'nova'  # good for most languages
+    # Build TTS input with language context for reliable detection
+    lang_names = {
+        'es': 'español', 'en': 'English', 'de': 'Deutsch', 'fr': 'français',
+        'it': 'italiano', 'pt': 'português', 'ru': 'русский', 'pl': 'polski',
+        'sk': 'slovenčina', 'nl': 'Nederlands', 'ja': '日本語', 'zh': '中文',
+        'ko': '한국어', 'ar': 'العربية', 'tr': 'Türkçe', 'hr': 'hrvatski',
+        'uk': 'українська', 'cs': 'čeština',
+    }
+    lang_name = lang_names.get(lang, '')
+    # Add language context so TTS detects correctly, especially for short words
+    if lang_name:
+        tts_input = f'[{lang_name}] {text}... {text}'
+    else:
+        tts_input = f'{text}... {text}'
+
+    voice = 'nova'
     try:
         req = urllib.request.Request(
             'https://api.openai.com/v1/audio/speech',
             data=json.dumps({
                 'model': 'tts-1',
-                'input': text,
+                'input': tts_input,
                 'voice': voice,
                 'speed': 0.9,
             }).encode(),
