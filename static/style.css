@@ -552,6 +552,21 @@ body {
     flex-shrink: 0;
 }
 
+.btn-speak {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px;
+    opacity: 0.4;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+}
+
+.btn-speak:hover, .btn-speak:active {
+    opacity: 1;
+}
+
 .word-actions button, .word-actions .btn-icon {
     background: none;
     border: none;

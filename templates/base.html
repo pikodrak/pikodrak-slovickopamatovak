@@ -25,6 +25,7 @@
             {% if current_user.is_authenticated %}
             <a href="{{ url_for('dashboard') }}" class="nav-link">Slovníky</a>
             <a href="{{ url_for('difficult_words') }}" class="nav-link">Opakování</a>
+            <a href="{{ url_for('chat_page') }}" class="nav-link">Chat</a>
             <div class="nav-dropdown">
                 <button class="nav-link nav-dropdown-toggle" onclick="toggleUserMenu(event)"><span class="sync-dot" id="syncDot"></span>{{ current_user.username }} &#9662;</button>
                 <div class="nav-dropdown-menu" id="userMenu">

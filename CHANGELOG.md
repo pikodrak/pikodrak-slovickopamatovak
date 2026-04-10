@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0 — 2026-04-10
+
+### Přidáno
+- AI Chat — konverzační rozhraní s AI (/chat)
+  - Povídání v cílovém jazyce přizpůsobené úrovni
+  - Vysvětlování gramatiky a slovíček
+  - Vytváření slovníků a přidávání slov přes chat příkazy
+  - Opravování chyb s vysvětlením
+  - Odkaz "Chat" v navigaci
+- Výslovnost slovíček (TTS)
+  - Tlačítko reproduktoru u každého slova ve slovníku
+  - Tlačítko reproduktoru na kartičkách při procvičování (přední i zadní strana)
+  - Browser SpeechSynthesis API — zdarma, funguje offline, podporuje 18+ jazyků
+  - Pomalejší tempo (0.85x) pro lepší srozumitelnost
+
 ## 0.7.2 — 2026-04-10
 
 ### Přidáno

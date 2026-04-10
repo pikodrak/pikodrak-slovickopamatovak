@@ -73,8 +73,10 @@
         {% for word in ws.words %}
         <div class="word-row" id="word-{{ word.id }}">
             <div class="word-texts">
+                <button class="btn-speak" onclick="speak('{{ word.word_a|e }}', '{{ ws.lang_a }}')" title="Přečíst">&#128264;</button>
                 <span class="word-czech">{{ word.word_a }}</span>
                 <span class="word-sep">=</span>
+                <button class="btn-speak" onclick="speak('{{ word.word_b|e }}', '{{ ws.lang_b }}')" title="Přečíst">&#128264;</button>
                 <span class="word-spanish">{{ word.word_b }}</span>
                 {% if word.id in word_stats %}
                 {% set st = word_stats[word.id] %}
@@ -229,5 +231,23 @@ function closeExplainModal() {
 document.getElementById('explainModal').addEventListener('click', function(e) {
     if (e.target === this) closeExplainModal();
 });
+
+// --- TTS ---
+var LANG_CODES = {
+    'cs': 'cs-CZ', 'es': 'es-ES', 'en': 'en-US', 'de': 'de-DE',
+    'fr': 'fr-FR', 'it': 'it-IT', 'pt': 'pt-PT', 'ru': 'ru-RU',
+    'pl': 'pl-PL', 'sk': 'sk-SK', 'nl': 'nl-NL', 'uk': 'uk-UA',
+    'hr': 'hr-HR', 'ja': 'ja-JP', 'zh': 'zh-CN', 'ko': 'ko-KR',
+    'ar': 'ar-SA', 'tr': 'tr-TR'
+};
+
+function speak(text, langCode) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = LANG_CODES[langCode] || langCode;
+    u.rate = 0.85;
+    window.speechSynthesis.speak(u);
+}
 </script>
 {% endblock %}

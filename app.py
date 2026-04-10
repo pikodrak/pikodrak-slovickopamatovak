@@ -994,6 +994,97 @@ def ai_explain():
         return jsonify({'error': str(e)}), 500
 
 
+# --- AI Chat ---
+
+@app.route('/chat')
+@login_required
+def chat_page():
+    return render_template('chat.html')
+
+
+@app.route('/ai/chat', methods=['POST'])
+@login_required
+def ai_chat_endpoint():
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'AI není dostupné'}), 400
+    data = request.get_json(silent=True) or {}
+    messages = data.get('messages', [])
+    if not messages:
+        return jsonify({'error': 'no messages'}), 400
+
+    # Build context about user's sets
+    sets = WordSet.query.filter_by(user_id=current_user.id).all()
+    sets_info = ', '.join([f'"{s.name}" ({s.lang_a_name}→{s.lang_b_name}, {len(s.words)} slov)' for s in sets])
+
+    system_prompt = (
+        f"Jsi jazykový asistent v aplikaci SlovíčkoPamatovák. Uživatel: {current_user.username}.\n"
+        f"Uživatelovy slovníky: {sets_info or 'žádné'}.\n\n"
+        f"Tvoje schopnosti:\n"
+        f"- Konverzace v jakémkoli jazyce, přizpůsobená úrovni uživatele\n"
+        f"- Vysvětlování gramatiky, slovíček, frází\n"
+        f"- Když uživatel nerozumí, vysvětli česky\n"
+        f"- Můžeš navrhnout slovíčka k přidání do slovníku\n"
+        f"- Opravuj chyby uživatele jemně a vysvětli proč\n\n"
+        f"Pokud uživatel chce vytvořit slovník nebo přidat slovíčka, vrať na konci zprávy speciální blok:\n"
+        f"[ACTION:CREATE_SET|název|lang_a|lang_b]\n"
+        f"[ACTION:ADD_WORDS|set_id|slovo1;překlad1\\nslovo2;překlad2]\n"
+        f"[ACTION:EXPLAIN_ALL|set_id] — vygeneruje popisy všech slov v sadě\n"
+        f"Tyto akce se provedou automaticky. Odpovídej stručně a přátelsky."
+    )
+
+    api_messages = [{'role': 'system', 'content': system_prompt}] + messages[-20:]
+
+    try:
+        req = urllib.request.Request(
+            'https://api.openai.com/v1/chat/completions',
+            data=json.dumps({
+                'model': OPENAI_MODEL,
+                'messages': api_messages,
+                'temperature': 0.8,
+            }).encode(),
+            headers={
+                'Authorization': f'Bearer {OPENAI_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read())
+        reply = result['choices'][0]['message']['content']
+
+        # Process actions
+        actions_done = []
+        import re
+        for match in re.finditer(r'\[ACTION:CREATE_SET\|(.+?)\|(.+?)\|(.+?)\]', reply):
+            name, lang_a, lang_b = match.group(1), match.group(2), match.group(3)
+            ws = WordSet(name=name, lang_a=lang_a, lang_b=lang_b, user_id=current_user.id)
+            db.session.add(ws)
+            db.session.commit()
+            actions_done.append(f'Slovník "{name}" vytvořen (ID: {ws.id})')
+
+        for match in re.finditer(r'\[ACTION:ADD_WORDS\|(\d+)\|(.+?)\]', reply, re.DOTALL):
+            set_id = int(match.group(1))
+            ws = db.session.get(WordSet, set_id)
+            if ws and ws.user_id == current_user.id:
+                count = 0
+                for line in match.group(2).split('\\n'):
+                    line = line.strip()
+                    if ';' in line:
+                        parts = line.split(';', 1)
+                        if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+                            db.session.add(Word(word_a=parts[0].strip(), word_b=parts[1].strip(), set_id=set_id))
+                            count += 1
+                db.session.commit()
+                if count:
+                    actions_done.append(f'Přidáno {count} slovíček do "{ws.name}"')
+
+        # Clean action tags from reply
+        clean_reply = re.sub(r'\[ACTION:.+?\]', '', reply).strip()
+
+        return jsonify({'reply': clean_reply, 'actions': actions_done})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # --- Offline page + SW ---
 
 @app.route('/offline')
