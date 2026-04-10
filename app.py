@@ -683,10 +683,15 @@ def practice(set_id):
         flash('Sada neobsahuje žádná slovíčka.', 'error')
         return redirect(url_for('view_set', set_id=set_id))
     all_words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
-    # Optional range filter
+    # Optional range or random filter
+    import random as rnd
+    rand_count = request.args.get('random', type=int)
     wfrom = request.args.get('from', type=int)
     wto = request.args.get('to', type=int)
-    if wfrom is not None and wto is not None:
+    if rand_count and rand_count < len(all_words):
+        words = rnd.sample(all_words, rand_count)
+        range_label = f'{rand_count} náhodných'
+    elif wfrom is not None and wto is not None:
         words = all_words[wfrom-1:wto]
         range_label = f'{wfrom}–{wto}'
     else:

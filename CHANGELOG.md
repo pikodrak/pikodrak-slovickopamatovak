@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2 — 2026-04-10
+
+### Přidáno
+- Tlačítko "Ukončit" během procvičování — uloží neprobraná slovíčka jako špatná do statistik
+- Tlačítko "10 náhodných" na stránce slovníku — vybere 10 náhodných slovíček k procvičení
+
 ## 0.7.1 — 2026-04-10
 
 ### Vylepšeno

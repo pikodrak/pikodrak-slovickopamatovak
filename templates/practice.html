@@ -84,6 +84,7 @@
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill" style="width: 0%"></div>
             </div>
+            <button class="btn btn-outline btn-sm" onclick="endEarly()" style="margin-top:8px; font-size:0.8rem;">Ukončit</button>
         </div>
 
         <!-- FLIP mode -->
@@ -381,6 +382,15 @@ document.addEventListener('keydown', function(e) {
 });
 
 // --- Common ---
+function endEarly() {
+    if (!confirm('Ukončit procvičování? Neprobrané slovíčka se uloží jako špatné.')) return;
+    // Log remaining words as wrong
+    for (var i = currentIndex; i < queue.length; i++) {
+        logResult(queue[i].id, false);
+    }
+    showDone();
+}
+
 function endRound() {
     if (wrongWords.length > 0) {
         queue = shuffle([...wrongWords]);
