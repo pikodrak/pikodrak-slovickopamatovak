@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1 — 2026-04-10
+
+### Vylepšeno
+- AI vysvětlení slovíček: u sloves se nyní zobrazuje kompletní časování
+  - Přítomný čas (presente)
+  - Minulé časy (pretérito, imperfecto)
+  - Nepravidelné tvary označeny *
+- Stará cache vysvětlení smazána pro regeneraci s novým formátem
+
 ## 0.7.0 — 2026-04-10
 
 ### Přidáno

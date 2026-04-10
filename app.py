@@ -971,7 +971,11 @@ def ai_explain():
         f"1. All meanings the word can have in {lang} (numbered)\n"
         f"2. For each meaning, give a short example sentence in {lang} with Czech translation\n"
         f"3. If relevant, mention irregular forms, common collocations, or usage notes\n"
-        f"Keep it concise but thorough. Answer in Czech (examples in {lang})."
+        f"4. If the word is a VERB, add at the end a full conjugation table:\n"
+        f"   - First the PRESENT tense (yo, tú, él/ella, nosotros, vosotros, ellos/ellas)\n"
+        f"   - Then PAST tenses (pretérito, imperfecto) in the same format\n"
+        f"   - Mark irregular forms with *\n"
+        f"Keep it concise but thorough. Answer in Czech (examples and conjugation in {lang})."
     )
     try:
         result = openai_chat(system_prompt, word)
