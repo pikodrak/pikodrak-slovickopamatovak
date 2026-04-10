@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Obtížná slovíčka — {{ APP_NAME }}{% endblock %}
+{% block title %}Opakování — {{ APP_NAME }}{% endblock %}
 {% block nav_back %}<a href="{{ url_for('dashboard') }}" class="nav-back">&#8249;</a>{% endblock %}
 {% block head %}
 <style>
@@ -26,17 +26,17 @@
 <div class="container">
     <div class="page-header">
         <div class="page-header-row">
-            <h1>Obtížná slovíčka</h1>
+            <h1>Opakování</h1>
         </div>
         <div style="font-size:0.85rem; color:var(--text-light); margin-top:4px;">
-            Slovíčka s nejvyšší chybovostí
+            Slovíčka, ve kterých děláte nejčastěji chyby
         </div>
     </div>
 
     {% if words %}
     <div style="margin-bottom: 16px;">
         <a href="{{ url_for('practice_difficult') }}" class="btn btn-success btn-block btn-lg">
-            Procvičovat obtížná ({{ words|length }})
+            Procvičovat k opakování ({{ words|length }})
         </a>
     </div>
 
@@ -58,7 +58,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <p>Zatím nemáte žádná obtížná slovíčka.</p>
+        <p>Zatím nemáte žádná slovíčka k opakování.</p>
         <p style="font-size:0.85rem; color:var(--text-light);">Začněte procvičovat a statistiky se budou sbírat.</p>
     </div>
     {% endif %}

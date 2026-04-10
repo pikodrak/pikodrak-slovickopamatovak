@@ -5,7 +5,7 @@
     <div style="font-size:5rem; font-weight:800; color:var(--primary); line-height:1;">{{ code }}</div>
     <div style="font-size:1.2rem; color:var(--text-light); margin:12px 0 32px;">{{ message }}</div>
     <a href="{{ url_for('dashboard') if current_user.is_authenticated else url_for('login') }}" class="btn btn-primary btn-lg">
-        {% if current_user.is_authenticated %}Moje sady{% else %}Na úvodní stránku{% endif %}
+        {% if current_user.is_authenticated %}Slovníky{% else %}Na úvodní stránku{% endif %}
     </a>
 </div>
 {% endblock %}

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block title %}Moje sady — {{ APP_NAME }}{% endblock %}
+{% block title %}Slovníky — {{ APP_NAME }}{% endblock %}
 {% block body %}
 <div class="container">
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -9,7 +9,7 @@
     {% endwith %}
 
     <div class="section-header">
-        <h2>Moje sady</h2>
+        <h2>Slovníky</h2>
         <a href="{{ url_for('new_set') }}" class="btn btn-primary btn-sm">+ Nová sada</a>
     </div>
 

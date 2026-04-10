@@ -713,14 +713,14 @@ def difficult_words():
 def practice_difficult():
     rows = get_difficult_words(current_user.id, min_attempts=1, limit=100)
     if not rows:
-        flash('Zatím nemáte žádná obtížná slovíčka.', 'error')
+        flash('Zatím nemáte žádná slovíčka k opakování.', 'error')
         return redirect(url_for('difficult_words'))
     words = [{'id': r.id, 'word_a': r.word_a, 'word_b': r.word_b} for r in rows]
     # Build a fake WordSet-like object for the template
     lang_a = rows[0].lang_a
     lang_b = rows[0].lang_b
     ws_data = type('WS', (), {
-        'id': 0, 'name': 'Obtížná slovíčka',
+        'id': 0, 'name': 'Opakování',
         'lang_a': lang_a, 'lang_b': lang_b,
         'lang_a_name': LANG_MAP.get(lang_a, lang_a),
         'lang_b_name': LANG_MAP.get(lang_b, lang_b),

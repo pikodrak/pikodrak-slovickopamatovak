@@ -148,7 +148,7 @@
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <button class="btn btn-primary btn-lg" onclick="restart()">Procvičovat znovu</button>
                 {% if is_difficult is defined and is_difficult %}
-                <a href="{{ url_for('difficult_words') }}" class="btn btn-outline btn-lg">Zpět na obtížná</a>
+                <a href="{{ url_for('difficult_words') }}" class="btn btn-outline btn-lg">Zpět na opakování</a>
                 {% elif shared_token %}
                 <a href="{{ url_for('shared_set', token=shared_token) }}" class="btn btn-outline btn-lg">Zpět na sadu</a>
                 {% else %}

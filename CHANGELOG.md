@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-04-10
+
+### Změněno
+- Navigace: API, Changelog a Odhlásit přesunuty do rozbalovacího menu pod uživatelským jménem
+- "Sady" přejmenováno na "Slovníky"
+- "Obtížná" přejmenováno na "Opakování"
+
 ## 0.5.0 — 2026-04-10
 
 ### Přidáno
