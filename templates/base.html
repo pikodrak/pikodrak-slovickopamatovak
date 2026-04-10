@@ -19,7 +19,7 @@
     <nav class="navbar">
         <div class="nav-left">
             {% block nav_back %}{% endblock %}
-            <a href="{% if current_user.is_authenticated %}{{ url_for('dashboard') }}{% else %}/{% endif %}" class="nav-brand">{{ APP_NAME }} <span class="nav-version">v{{ APP_VERSION }}</span></a>
+            <a href="{% if current_user.is_authenticated %}{{ url_for('dashboard') }}{% else %}/{% endif %}" class="nav-brand">SP</a>
         </div>
         <div class="nav-right">
             {% if current_user.is_authenticated %}
