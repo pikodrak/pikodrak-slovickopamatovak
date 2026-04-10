@@ -2,7 +2,7 @@
   "name": "SlovíčkoPamatovák",
   "short_name": "Slovíčka",
   "description": "Procvičování slovíček v jakémkoli jazyce",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#fafafa",
   "theme_color": "#e65100",

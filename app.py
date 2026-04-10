@@ -953,11 +953,19 @@ def ai_explain():
         return jsonify({'error': str(e)}), 500
 
 
-# --- Offline page ---
+# --- Offline page + SW ---
 
 @app.route('/offline')
 def offline_page():
     return render_template('offline.html')
+
+
+@app.route('/sw.js')
+def service_worker():
+    return app.send_static_file('sw.js'), 200, {
+        'Content-Type': 'application/javascript',
+        'Service-Worker-Allowed': '/',
+    }
 
 
 # --- Error handlers ---
