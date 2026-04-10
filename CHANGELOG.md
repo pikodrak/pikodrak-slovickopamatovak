@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-04-10
+
+### Přidáno
+- AI režim procvičování "Psaní (AI)"
+  - Místo otáčení kartiček píšete překlad
+  - AI vyhodnotí odpověď (přijímá synonyma, překlepy, alternativy)
+  - Barevná zpětná vazba: zelená (správně), oranžová (skoro), červená (špatně)
+  - Tlačítko Nápověda — AI dá nápovědu bez prozrazení slova
+  - Enter pro odeslání a pokračování
+  - Špatné odpovědi se opakují v dalším kole
+- Fallback na přímé porovnání řetězců pokud AI není dostupné
+
 ## 0.2.0 — 2026-04-10
 
 ### Přidáno

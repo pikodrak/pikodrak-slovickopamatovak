@@ -3,13 +3,46 @@
 {% block nav_back %}
 <a href="{% if shared_token %}{{ url_for('shared_set', token=shared_token) }}{% else %}{{ url_for('view_set', set_id=ws.id) }}{% endif %}" class="nav-back">&#8249;</a>
 {% endblock %}
+{% block head %}
+<style>
+    .mode-picker { display:flex; gap:8px; margin:16px 0; }
+    .mode-btn {
+        flex:1; padding:10px; border:2px solid var(--border); border-radius:8px;
+        background:white; cursor:pointer; text-align:center; font-size:0.85rem;
+        font-weight:600; transition:all 0.2s;
+    }
+    .mode-btn.active { border-color:var(--secondary); background:#e3f2fd; color:var(--secondary); }
+    .write-area { margin-top:20px; }
+    .write-input {
+        width:100%; padding:14px 16px; border:2px solid var(--border); border-radius:10px;
+        font-size:1.1rem; text-align:center; outline:none; transition:border-color 0.2s;
+    }
+    .write-input:focus { border-color:var(--primary); }
+    .write-input.correct { border-color:var(--success); background:#e8f5e9; }
+    .write-input.almost { border-color:#ff9800; background:#fff3e0; }
+    .write-input.wrong { border-color:var(--danger); background:#ffebee; }
+    .ai-feedback {
+        margin-top:12px; padding:12px 16px; border-radius:8px; text-align:center;
+        font-size:0.95rem; font-weight:500; display:none;
+    }
+    .ai-feedback.correct { background:#e8f5e9; color:var(--success); }
+    .ai-feedback.almost { background:#fff3e0; color:#e65100; }
+    .ai-feedback.wrong { background:#ffebee; color:var(--danger); }
+    .hint-text {
+        margin-top:10px; padding:10px 14px; background:#f3e5f5; color:#7b1fa2;
+        border-radius:8px; font-size:0.9rem; text-align:center; display:none;
+    }
+    .write-buttons { display:flex; gap:10px; margin-top:14px; }
+    .write-buttons .btn { flex:1; }
+</style>
+{% endblock %}
 {% block body %}
 <div class="container">
     <div class="page-header" style="text-align:center;">
         <h1>{{ ws.name }}</h1>
     </div>
 
-    <!-- Direction picker -->
+    <!-- Setup -->
     <div id="setup">
         <div class="card">
             <h2 style="margin-bottom: 16px; text-align: center;">Směr procvičování</h2>
@@ -24,6 +57,15 @@
                     Mix
                 </button>
             </div>
+
+            {% if AI_ENABLED %}
+            <h2 style="margin:20px 0 12px; text-align:center; font-size:1rem;">Režim</h2>
+            <div class="mode-picker">
+                <button class="mode-btn active" data-mode="flip" onclick="setMode('flip')">Kartičky</button>
+                <button class="mode-btn" data-mode="write" onclick="setMode('write')">Psaní (AI)</button>
+            </div>
+            {% endif %}
+
             <button class="btn btn-primary btn-block btn-lg" onclick="startPractice()">
                 Začít procvičovat
             </button>
@@ -41,25 +83,50 @@
             </div>
         </div>
 
-        <div class="flashcard-container">
-            <div class="flashcard" id="flashcard" onclick="flipCard()">
-                <div class="flashcard-inner">
-                    <div class="flashcard-front">
-                        <div class="flashcard-lang" id="frontLang"></div>
-                        <div class="flashcard-word" id="frontWord"></div>
-                        <div class="flashcard-hint">klepněte pro zobrazení překladu</div>
-                    </div>
-                    <div class="flashcard-back">
-                        <div class="flashcard-lang" id="backLang"></div>
-                        <div class="flashcard-word" id="backWord"></div>
+        <!-- FLIP mode -->
+        <div id="flipMode">
+            <div class="flashcard-container">
+                <div class="flashcard" id="flashcard" onclick="flipCard()">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <div class="flashcard-lang" id="frontLang"></div>
+                            <div class="flashcard-word" id="frontWord"></div>
+                            <div class="flashcard-hint">klepněte pro zobrazení překladu</div>
+                        </div>
+                        <div class="flashcard-back">
+                            <div class="flashcard-lang" id="backLang"></div>
+                            <div class="flashcard-word" id="backWord"></div>
+                        </div>
                     </div>
                 </div>
             </div>
+            <div class="practice-buttons" id="answerButtons" style="display:none;">
+                <button class="btn btn-danger" onclick="answer(false)">Nevěděl/a</button>
+                <button class="btn btn-success" onclick="answer(true)">Věděl/a</button>
+            </div>
         </div>
 
-        <div class="practice-buttons" id="answerButtons" style="display:none;">
-            <button class="btn btn-danger" onclick="answer(false)">Nevěděl/a</button>
-            <button class="btn btn-success" onclick="answer(true)">Věděl/a</button>
+        <!-- WRITE mode -->
+        <div id="writeMode" style="display:none;">
+            <div class="card" style="text-align:center; padding:24px;">
+                <div class="flashcard-lang" id="writeLang"></div>
+                <div class="flashcard-word" id="writeQuestion" style="font-size:1.8rem; font-weight:700; margin:12px 0;"></div>
+            </div>
+            <div class="write-area">
+                <div style="position:relative;">
+                    <input type="text" class="write-input" id="writeInput" placeholder="Napište překlad..."
+                           autocomplete="off" autocapitalize="off" spellcheck="false">
+                </div>
+                <div class="hint-text" id="hintText"></div>
+                <div class="ai-feedback" id="aiFeedback"></div>
+                <div class="write-buttons" id="writeButtons">
+                    <button class="btn btn-outline" id="hintBtn" onclick="getHint()">Nápověda</button>
+                    <button class="btn btn-primary" id="checkBtn" onclick="checkAnswer()">Zkontrolovat</button>
+                </div>
+                <div class="write-buttons" id="writeNextButtons" style="display:none;">
+                    <button class="btn btn-primary btn-block" onclick="writeNext()">Další</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -97,18 +164,25 @@ const ALL_WORDS = {{ words|tojson }};
 const LANG_A = {{ ws.lang_a_name|tojson }};
 const LANG_B = {{ ws.lang_b_name|tojson }};
 let direction = 'a-b';
+let mode = 'flip';
 let queue = [];
 let currentIndex = 0;
 let totalInRound = 0;
 let wrongWords = [];
 let isFlipped = false;
 let roundNumber = 1;
+let currentCorrectAnswer = '';
+let currentAnswerLang = '';
+let writeAnswered = false;
 
 function setDirection(dir) {
     direction = dir;
-    document.querySelectorAll('.direction-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.dir === dir);
-    });
+    document.querySelectorAll('.direction-btn').forEach(b => b.classList.toggle('active', b.dataset.dir === dir));
+}
+
+function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
 }
 
 function shuffle(arr) {
@@ -125,11 +199,11 @@ function startPractice() {
     currentIndex = 0;
     wrongWords = [];
     roundNumber = 1;
-
     document.getElementById('setup').style.display = 'none';
     document.getElementById('practiceArea').style.display = 'block';
     document.getElementById('doneScreen').style.display = 'none';
-
+    document.getElementById('flipMode').style.display = mode === 'flip' ? 'block' : 'none';
+    document.getElementById('writeMode').style.display = mode === 'write' ? 'block' : 'none';
     showCard();
 }
 
@@ -141,46 +215,151 @@ function getCardDirection(word) {
 }
 
 function showCard() {
-    if (currentIndex >= queue.length) {
-        endRound();
-        return;
-    }
-
+    if (currentIndex >= queue.length) { endRound(); return; }
     const word = queue[currentIndex];
     const dir = getCardDirection(word);
 
-    document.getElementById('frontWord').textContent = dir.front;
-    document.getElementById('backWord').textContent = dir.back;
-    document.getElementById('frontLang').textContent = dir.frontLang;
-    document.getElementById('backLang').textContent = dir.backLang;
-
-    const card = document.getElementById('flashcard');
-    card.classList.remove('flipped');
-    isFlipped = false;
-    document.getElementById('answerButtons').style.display = 'none';
-
+    // Update progress
     const progress = currentIndex / totalInRound * 100;
     document.getElementById('progressFill').style.width = progress + '%';
     document.getElementById('progressText').textContent =
         (currentIndex + 1) + ' / ' + totalInRound +
         (roundNumber > 1 ? '  (opakování č. ' + (roundNumber - 1) + ')' : '');
+
+    if (mode === 'flip') {
+        document.getElementById('frontWord').textContent = dir.front;
+        document.getElementById('backWord').textContent = dir.back;
+        document.getElementById('frontLang').textContent = dir.frontLang;
+        document.getElementById('backLang').textContent = dir.backLang;
+        document.getElementById('flashcard').classList.remove('flipped');
+        isFlipped = false;
+        document.getElementById('answerButtons').style.display = 'none';
+    } else {
+        currentCorrectAnswer = dir.back;
+        currentAnswerLang = dir.backLang;
+        document.getElementById('writeLang').textContent = dir.frontLang;
+        document.getElementById('writeQuestion').textContent = dir.front;
+        var input = document.getElementById('writeInput');
+        input.value = '';
+        input.className = 'write-input';
+        input.disabled = false;
+        input.focus();
+        document.getElementById('aiFeedback').style.display = 'none';
+        document.getElementById('hintText').style.display = 'none';
+        document.getElementById('writeButtons').style.display = 'flex';
+        document.getElementById('writeNextButtons').style.display = 'none';
+        document.getElementById('hintBtn').disabled = false;
+        document.getElementById('checkBtn').disabled = false;
+        document.getElementById('checkBtn').textContent = 'Zkontrolovat';
+        writeAnswered = false;
+    }
 }
 
+// --- FLIP mode ---
 function flipCard() {
-    if (isFlipped) return;
+    if (isFlipped || mode !== 'flip') return;
     isFlipped = true;
     document.getElementById('flashcard').classList.add('flipped');
     document.getElementById('answerButtons').style.display = 'flex';
 }
 
 function answer(correct) {
-    if (!correct) {
-        wrongWords.push(queue[currentIndex]);
-    }
+    if (!correct) wrongWords.push(queue[currentIndex]);
     currentIndex++;
     showCard();
 }
 
+// --- WRITE mode ---
+function checkAnswer() {
+    if (writeAnswered) return;
+    var input = document.getElementById('writeInput');
+    var userAnswer = input.value.trim();
+    if (!userAnswer) { input.focus(); return; }
+
+    writeAnswered = true;
+    var btn = document.getElementById('checkBtn');
+    btn.textContent = '...';
+    btn.disabled = true;
+    document.getElementById('hintBtn').disabled = true;
+    input.disabled = true;
+
+    fetch('/ai/evaluate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            correct: currentCorrectAnswer,
+            answer: userAnswer,
+            lang: currentAnswerLang
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        var fb = document.getElementById('aiFeedback');
+        var result = data.result || 'wrong';
+        input.className = 'write-input ' + result;
+        fb.className = 'ai-feedback ' + result;
+        fb.style.display = 'block';
+
+        var icon = result === 'correct' ? '&#10003; ' : result === 'almost' ? '&#9888; ' : '&#10007; ';
+        var correctLine = result !== 'correct' ? '<br><strong>' + data.correct_answer + '</strong>' : '';
+        fb.innerHTML = icon + (data.note || '') + correctLine;
+
+        if (result === 'wrong') {
+            wrongWords.push(queue[currentIndex]);
+        }
+        // "almost" counts as correct enough - don't repeat
+
+        document.getElementById('writeButtons').style.display = 'none';
+        document.getElementById('writeNextButtons').style.display = 'flex';
+    })
+    .catch(err => {
+        // Fallback: simple string comparison
+        var isCorrect = userAnswer.toLowerCase() === currentCorrectAnswer.toLowerCase();
+        input.className = 'write-input ' + (isCorrect ? 'correct' : 'wrong');
+        var fb = document.getElementById('aiFeedback');
+        fb.className = 'ai-feedback ' + (isCorrect ? 'correct' : 'wrong');
+        fb.innerHTML = isCorrect ? '&#10003; Správně!' : '&#10007; Správná odpověď: <strong>' + currentCorrectAnswer + '</strong>';
+        fb.style.display = 'block';
+        if (!isCorrect) wrongWords.push(queue[currentIndex]);
+        document.getElementById('writeButtons').style.display = 'none';
+        document.getElementById('writeNextButtons').style.display = 'flex';
+    });
+}
+
+function writeNext() {
+    currentIndex++;
+    showCard();
+}
+
+function getHint() {
+    var btn = document.getElementById('hintBtn');
+    btn.textContent = '...';
+    btn.disabled = true;
+    fetch('/ai/hint', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ word: currentCorrectAnswer, lang: currentAnswerLang })
+    })
+    .then(r => r.json())
+    .then(data => {
+        var ht = document.getElementById('hintText');
+        ht.textContent = data.hint || data.error || '?';
+        ht.style.display = 'block';
+    })
+    .catch(() => {})
+    .finally(() => { btn.textContent = 'Nápověda'; });
+}
+
+// Handle Enter key in write mode
+document.addEventListener('keydown', function(e) {
+    if (mode !== 'write') return;
+    if (e.key === 'Enter') {
+        if (!writeAnswered) checkAnswer();
+        else writeNext();
+    }
+});
+
+// --- Common ---
 function endRound() {
     if (wrongWords.length > 0) {
         queue = shuffle([...wrongWords]);
@@ -197,17 +376,14 @@ function endRound() {
 function showDone() {
     document.getElementById('practiceArea').style.display = 'none';
     document.getElementById('doneScreen').style.display = 'block';
-
     document.getElementById('statCorrect').textContent = ALL_WORDS.length;
     document.getElementById('statRounds').textContent = roundNumber;
-
     if (roundNumber === 1) {
         document.getElementById('doneTitle').textContent = 'Perfektní!';
         document.getElementById('doneMessage').textContent = 'Všechna slovíčka na první pokus!';
     } else {
         document.getElementById('doneTitle').textContent = 'Hotovo!';
-        document.getElementById('doneMessage').textContent =
-            'Zvládli jste to po ' + roundNumber + ' kolech.';
+        document.getElementById('doneMessage').textContent = 'Zvládli jste to po ' + roundNumber + ' kolech.';
     }
 }
 

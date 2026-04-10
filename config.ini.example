@@ -1,6 +1,6 @@
 [app]
 name = SlovíčkoPamatovák
-version = 0.2.0
+version = 0.3.0
 secret_key =
 debug = true
 host = 0.0.0.0

@@ -742,6 +742,67 @@ def ai_translate():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/ai/evaluate', methods=['POST'])
+def ai_evaluate():
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'AI není dostupné'}), 400
+    data = request.get_json(silent=True) or {}
+    correct_answer = data.get('correct', '').strip()
+    user_answer = data.get('answer', '').strip()
+    lang = data.get('lang', '')
+    if not correct_answer or not user_answer:
+        return jsonify({'error': 'missing fields'}), 400
+
+    system_prompt = (
+        f"You are a vocabulary quiz evaluator for {lang}. "
+        f"The correct answer is: \"{correct_answer}\"\n"
+        f"The student answered: \"{user_answer}\"\n\n"
+        f"Evaluate if the answer is correct. Accept synonyms, minor typos, "
+        f"missing/extra accents, and alternative valid translations.\n"
+        f"Respond with EXACTLY one JSON object (no markdown, no explanation):\n"
+        f'{{"result": "correct"|"almost"|"wrong", "note": "short feedback in Czech, max 10 words"}}\n'
+        f"- correct = the answer is right or a valid synonym\n"
+        f"- almost = very close but has a meaningful error (e.g. wrong gender, tense)\n"
+        f"- wrong = completely different meaning"
+    )
+    try:
+        raw = openai_chat(system_prompt, user_answer)
+        # Parse JSON from response
+        raw = raw.strip()
+        if raw.startswith('```'):
+            raw = raw.split('\n', 1)[-1].rsplit('```', 1)[0].strip()
+        result = json.loads(raw)
+        result['correct_answer'] = correct_answer
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/ai/hint', methods=['POST'])
+def ai_hint():
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'AI není dostupné'}), 400
+    data = request.get_json(silent=True) or {}
+    word = data.get('word', '').strip()
+    lang = data.get('lang', '')
+    if not word or not lang:
+        return jsonify({'error': 'missing fields'}), 400
+
+    system_prompt = (
+        f"You are a vocabulary learning helper. The student is trying to remember "
+        f"the translation of a word. Give a SHORT hint in Czech (max 15 words) "
+        f"that helps them remember without revealing the exact word. "
+        f"You can mention: first letter, number of syllables, a related context, "
+        f"or a mnemonic. Do NOT say the word itself."
+    )
+    user_prompt = f"The word in {lang} is: \"{word}\""
+    try:
+        result = openai_chat(system_prompt, user_prompt)
+        return jsonify({'hint': result.strip()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 # --- Error handlers ---
 
 @app.errorhandler(404)
