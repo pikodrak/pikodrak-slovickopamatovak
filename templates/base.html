@@ -20,6 +20,7 @@
         <div class="nav-left">
             {% block nav_back %}{% endblock %}
             <a href="{% if current_user.is_authenticated %}{{ url_for('dashboard') }}{% else %}/{% endif %}" class="nav-brand">SP</a>
+            <span class="sync-badge" id="syncBadge" title="Offline stav"></span>
         </div>
         <div class="nav-right">
             {% if current_user.is_authenticated %}

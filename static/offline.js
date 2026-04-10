@@ -58,20 +58,37 @@ function dbClear(db, store) {
     });
 }
 
+// === Sync badge ===
+function setSyncStatus(status, text) {
+    var badge = document.getElementById('syncBadge');
+    if (!badge) return;
+    badge.className = 'sync-badge ' + status;
+    badge.textContent = text;
+    badge.title = text;
+}
+
 // === Sync: download all data for offline use ===
 async function syncData() {
+    setSyncStatus('syncing', 'Synchronizuji...');
     try {
         const resp = await fetch('/api/my-data');
-        if (!resp.ok) return false;
+        if (!resp.ok) {
+            setSyncStatus('offline', 'Offline');
+            return false;
+        }
         const data = await resp.json();
         const db = await openDB();
         await dbClear(db, 'sets');
+        let wordCount = 0;
         for (const s of data.sets) {
             await dbPut(db, 'sets', s);
+            wordCount += (s.words || []).length;
         }
         await dbPut(db, 'meta', {key: 'lastSync', value: data.timestamp});
+        setSyncStatus('synced', wordCount + ' slovíček offline');
         return true;
     } catch (e) {
+        setSyncStatus('offline', 'Offline');
         return false;
     }
 }
@@ -128,13 +145,30 @@ async function getOfflineSet(setId) {
 }
 
 // === Auto-sync on page load ===
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     if (navigator.onLine) {
         flushPendingResults();
         syncData();
+    } else {
+        // Show offline status with cached word count
+        try {
+            const sets = await getOfflineSets();
+            let count = 0;
+            for (const s of sets) count += (s.words || []).length;
+            if (count > 0) {
+                setSyncStatus('offline', 'Offline · ' + count + ' slovíček');
+            } else {
+                setSyncStatus('offline', 'Offline');
+            }
+        } catch (e) {
+            setSyncStatus('offline', 'Offline');
+        }
     }
     window.addEventListener('online', function() {
         flushPendingResults();
         syncData();
+    });
+    window.addEventListener('offline', function() {
+        setSyncStatus('offline', 'Offline');
     });
 });

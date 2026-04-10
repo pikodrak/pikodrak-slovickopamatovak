@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sp-v3';
+const CACHE_NAME = 'sp-v4';
 const SHELL_URLS = [
     '/static/style.css',
     '/static/icon.svg',
