@@ -6,6 +6,7 @@
 - Verzování aplikace (v config.ini, zobrazeno v navbaru a na login stránce)
 - Stránka s changelogem (/changelog) přístupná z navbaru i login stránky
 - README.md s popisem projektu, instalací a konfigurací
+- Vlastní chybové stránky (404, 403, 500) s navigací zpět
 
 ## 2026-04-10 (2)
 

@@ -639,6 +639,23 @@ def changelog():
     return render_template('changelog.html', raw=raw)
 
 
+# --- Error handlers ---
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template('error.html', code=404, message='Stránka nenalezena'), 404
+
+
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('error.html', code=403, message='Přístup odepřen'), 403
+
+
+@app.errorhandler(500)
+def server_error(e):
+    return render_template('error.html', code=500, message='Chyba serveru'), 500
+
+
 # --- Init ---
 
 with app.app_context():
