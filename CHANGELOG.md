@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.3 — 2026-04-10
+
+### Opraveno
+- Kontejner rozšířen z 600px na 800px — na PC už nevypadá příliš úzce
+
 ## 0.6.2 — 2026-04-10
 
 ### Změněno
