@@ -953,6 +953,13 @@ def ai_explain():
         return jsonify({'error': str(e)}), 500
 
 
+# --- Offline page ---
+
+@app.route('/offline')
+def offline_page():
+    return render_template('offline.html')
+
+
 # --- Error handlers ---
 
 @app.errorhandler(404)

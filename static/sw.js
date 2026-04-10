@@ -1,12 +1,13 @@
-const CACHE_NAME = 'sp-v2';
+const CACHE_NAME = 'sp-v3';
 const SHELL_URLS = [
     '/static/style.css',
     '/static/icon.svg',
     '/static/manifest.json',
     '/static/offline.js',
+    '/offline',
 ];
 
-// Install: cache shell assets
+// Install: cache shell + offline page
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_URLS))
@@ -24,14 +25,10 @@ self.addEventListener('activate', event => {
     self.clients.claim();
 });
 
-// Fetch strategy:
-// - Static assets: cache-first
-// - API calls (/api/, /ai/, /practice/log): network-only (queued offline)
-// - HTML pages: network-first, fallback to cache, then offline page
 self.addEventListener('fetch', event => {
     const url = new URL(event.request.url);
 
-    // Skip non-GET for caching (POST results handled by offline queue in app JS)
+    // Skip non-GET
     if (event.request.method !== 'GET') return;
 
     // Static assets: cache-first
@@ -48,25 +45,27 @@ self.addEventListener('fetch', event => {
         return;
     }
 
-    // HTML pages: network-first, cache fallback
+    // API/data calls: network-only
+    if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ai/') || url.pathname.startsWith('/practice/')) {
+        return;
+    }
+
+    // HTML pages: network-first, cache fallback, offline page
     if (event.request.headers.get('Accept')?.includes('text/html')) {
         event.respondWith(
             fetch(event.request)
                 .then(resp => {
-                    const clone = resp.clone();
-                    caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                    // Cache successful HTML responses
+                    if (resp.status === 200) {
+                        const clone = resp.clone();
+                        caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
+                    }
                     return resp;
                 })
                 .catch(() =>
-                    caches.match(event.request).then(cached =>
-                        cached || caches.match('/dashboard') || new Response(
-                            '<html><body style="font-family:sans-serif;text-align:center;padding:60px 20px;">' +
-                            '<h1 style="color:#e65100;">Offline</h1>' +
-                            '<p>Tato stránka není dostupná offline.</p>' +
-                            '<p><a href="/dashboard">Zkusit znovu</a></p></body></html>',
-                            {headers: {'Content-Type': 'text/html; charset=utf-8'}}
-                        )
-                    )
+                    // Offline: try cache first, then offline page
+                    caches.match(event.request)
+                        .then(cached => cached || caches.match('/offline'))
                 )
         );
         return;

@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% block title %}Offline — {{ APP_NAME }}{% endblock %}
+{% block navbar %}
+<nav class="navbar">
+    <div class="nav-left">
+        <a href="/" class="nav-brand">SP</a>
+    </div>
+    <div class="nav-right">
+        <span class="nav-link" style="opacity:0.5;">Offline</span>
+    </div>
+</nav>
+{% endblock %}
+{% block body %}
+<div class="container">
+    <div id="offlineMsg" style="text-align:center; padding-top:40px;">
+        <div style="font-size:2.5rem; margin-bottom:12px;">&#128268;</div>
+        <h2 style="margin-bottom:8px;">Jste offline</h2>
+        <p style="color:var(--text-light); margin-bottom:24px;">Ale můžete procvičovat slovíčka ze stažených slovníků.</p>
+        <div id="offlineSets"></div>
+        <p id="noData" style="display:none; color:var(--text-light); font-size:0.9rem; margin-top:20px;">
+            Žádná data nejsou uložena. Přihlaste se online, aby se slovíčka stáhla.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadOfflineSets() {
+    if (typeof getOfflineSets !== 'function') {
+        document.getElementById('noData').style.display = 'block';
+        return;
+    }
+    const sets = await getOfflineSets();
+    const container = document.getElementById('offlineSets');
+    if (!sets || sets.length === 0) {
+        document.getElementById('noData').style.display = 'block';
+        return;
+    }
+    sets.forEach(s => {
+        if (!s.words || s.words.length === 0) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-primary btn-block btn-lg';
+        btn.style.marginBottom = '12px';
+        btn.textContent = s.name + ' (' + s.words.length + ')';
+        btn.onclick = function() { startOfflinePractice(s); };
+        container.appendChild(btn);
+    });
+}
+
+function startOfflinePractice(setData) {
+    document.getElementById('offlineMsg').style.display = 'none';
+    var area = document.createElement('div');
+    area.id = 'offPractice';
+    document.querySelector('.container').appendChild(area);
+
+    var words = [...setData.words];
+    // Shuffle
+    for (var i = words.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = words[i]; words[i] = words[j]; words[j] = t;
+    }
+
+    var idx = 0, wrong = [], round = 1;
+    var langA = setData.lang_a_name || 'A';
+    var langB = setData.lang_b_name || 'B';
+
+    function show() {
+        if (idx >= words.length) {
+            if (wrong.length > 0) {
+                words = [...wrong];
+                for (var i = words.length - 1; i > 0; i--) {
+                    var j = Math.floor(Math.random() * (i + 1));
+                    var t = words[i]; words[i] = words[j]; words[j] = t;
+                }
+                idx = 0; wrong = []; round++;
+                show();
+                return;
+            }
+            area.innerHTML =
+                '<div style="text-align:center; padding:40px 0;">' +
+                '<h2>Hotovo!</h2>' +
+                '<p style="color:var(--text-light);">' + (round === 1 ? 'Vše na první pokus!' : 'Zvládnuto po ' + round + ' kolech.') + '</p>' +
+                '<button class="btn btn-primary btn-lg" onclick="location.reload()">Zpět</button>' +
+                '</div>';
+            return;
+        }
+        var w = words[idx];
+        area.innerHTML =
+            '<div style="text-align:center; margin-bottom:12px; font-size:0.8rem; color:var(--text-light);">' +
+            (idx+1) + ' / ' + words.length + (round > 1 ? '  (opakování č.' + (round-1) + ')' : '') +
+            '</div>' +
+            '<div class="card" style="text-align:center; padding:30px 20px; min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;" id="offCard">' +
+            '<div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-light); letter-spacing:1px; margin-bottom:8px;">' + langA + '</div>' +
+            '<div style="font-size:1.8rem; font-weight:700;">' + escHtml(w.word_a) + '</div>' +
+            '<div id="offAnswer" style="display:none; margin-top:16px;">' +
+            '<div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-light); letter-spacing:1px; margin-bottom:8px;">' + langB + '</div>' +
+            '<div style="font-size:1.5rem; font-weight:600; color:var(--primary);">' + escHtml(w.word_b) + '</div>' +
+            '</div>' +
+            '<div id="offHint" style="font-size:0.8rem; color:var(--text-light); margin-top:12px;">klepněte pro zobrazení</div>' +
+            '</div>' +
+            '<div id="offButtons" style="display:none; display:flex; gap:12px; margin-top:16px;">' +
+            '<button class="btn btn-danger" style="flex:1; padding:16px;" id="offWrong">Nevěděl/a</button>' +
+            '<button class="btn btn-success" style="flex:1; padding:16px;" id="offRight">Věděl/a</button>' +
+            '</div>';
+
+        var revealed = false;
+        document.getElementById('offButtons').style.display = 'none';
+        document.getElementById('offCard').onclick = function() {
+            if (revealed) return;
+            revealed = true;
+            document.getElementById('offAnswer').style.display = 'block';
+            document.getElementById('offHint').style.display = 'none';
+            document.getElementById('offButtons').style.display = 'flex';
+        };
+        document.getElementById('offRight').onclick = function() {
+            if (typeof queuePracticeResult === 'function') queuePracticeResult(w.id, true);
+            idx++; show();
+        };
+        document.getElementById('offWrong').onclick = function() {
+            if (typeof queuePracticeResult === 'function') queuePracticeResult(w.id, false);
+            wrong.push(w); idx++; show();
+        };
+    }
+
+    show();
+}
+
+function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+loadOfflineSets();
+</script>
+{% endblock %}

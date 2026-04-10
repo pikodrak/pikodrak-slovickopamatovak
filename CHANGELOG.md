@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 — 2026-04-10
+
+### Opraveno
+- PWA offline: nová offline stránka s procvičováním z IndexedDB
+  - Když není internet, zobrazí se seznam stažených slovníků
+  - Kartičkové procvičování funguje kompletně offline
+  - Výsledky se uloží a odešlou po připojení
+- Navbar zkrácen na "SP" (víc prostoru na mobilu)
+
 ## 0.6.0 — 2026-04-10
 
 ### Přidáno
