@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 — 2026-04-10
+
+### Přidáno
+- AI kontrola duplicit při generování slovíček
+  - Prohledá všechny uživatelovy sady, přeskočí existující páry
+  - Zobrazí kolik slovíček bylo přeskočeno
+- AI vysvětlení slovíčka (tlačítko žárovky u každého výrazu)
+  - Všechny významy slova v cílovém jazyce
+  - Příklady vět s překladem
+  - Poznámky o nepravidelnostech a použití
+
 ## 0.3.0 — 2026-04-10
 
 ### Přidáno

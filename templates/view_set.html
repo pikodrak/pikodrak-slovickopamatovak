@@ -63,6 +63,7 @@
                 <span class="word-spanish">{{ word.word_b }}</span>
             </div>
             <div class="word-actions">
+                {% if AI_ENABLED %}<button class="btn-icon" onclick="explainWord('{{ word.word_b|e }}', '{{ ws.lang_b_name|e }}')" title="Vysvětlit">&#128161;</button>{% endif %}
                 <button class="btn-icon" onclick="openEditModal({{ word.id }}, '{{ word.word_a|e }}', '{{ word.word_b|e }}')" title="Upravit">&#9998;</button>
                 <form method="POST" action="{{ url_for('delete_word', word_id=word.id) }}" style="display:inline"
                       onsubmit="return confirm('Smazat slovíčko?')">
@@ -106,6 +107,16 @@
                 <button type="submit" class="btn btn-primary btn-sm">Uložit</button>
             </div>
         </form>
+    </div>
+</div>
+<!-- Explain modal -->
+<div class="modal-overlay" id="explainModal">
+    <div class="modal" style="max-height:80vh; overflow-y:auto;">
+        <h3 id="explainTitle" style="margin-bottom:12px;"></h3>
+        <div id="explainContent" style="font-size:0.9rem; line-height:1.7; white-space:pre-wrap;"></div>
+        <div class="modal-actions" style="margin-top:16px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="closeExplainModal()">Zavřít</button>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -168,5 +179,34 @@ function autoTranslate(direction) {
     .catch(err => alert('Chyba překladu'))
     .finally(() => { btn.textContent = '\u26A1'; btn.disabled = false; });
 }
+
+function explainWord(word, lang) {
+    document.getElementById('explainTitle').textContent = word;
+    document.getElementById('explainContent').textContent = 'Načítám...';
+    document.getElementById('explainModal').classList.add('active');
+
+    fetch('/ai/explain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({word: word, lang: lang})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.explanation) {
+            document.getElementById('explainContent').textContent = data.explanation;
+        } else {
+            document.getElementById('explainContent').textContent = data.error || 'Chyba';
+        }
+    })
+    .catch(() => { document.getElementById('explainContent').textContent = 'Chyba spojení'; });
+}
+
+function closeExplainModal() {
+    document.getElementById('explainModal').classList.remove('active');
+}
+
+document.getElementById('explainModal').addEventListener('click', function(e) {
+    if (e.target === this) closeExplainModal();
+});
 </script>
 {% endblock %}

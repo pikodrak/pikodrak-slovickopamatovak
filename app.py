@@ -697,7 +697,14 @@ def ai_generate(set_id):
 
         try:
             result = openai_chat(system_prompt, user_prompt)
+            # Collect all existing words across user's sets
+            all_user_sets = WordSet.query.filter_by(user_id=current_user.id).all()
+            existing = set()
+            for s in all_user_sets:
+                for w in s.words:
+                    existing.add((w.word_a.lower(), w.word_b.lower()))
             added = 0
+            skipped = 0
             for line in result.splitlines():
                 line = line.strip()
                 if not line or ';' not in line:
@@ -706,10 +713,17 @@ def ai_generate(set_id):
                 if len(parts) == 2:
                     a, b = parts[0].strip(), parts[1].strip()
                     if a and b:
-                        db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
-                        added += 1
+                        if (a.lower(), b.lower()) in existing:
+                            skipped += 1
+                        else:
+                            db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
+                            existing.add((a.lower(), b.lower()))
+                            added += 1
             db.session.commit()
-            flash(f'AI vygenerovalo {added} slovíček na téma "{topic}".', 'success')
+            msg = f'AI vygenerovalo {added} slovíček na téma "{topic}".'
+            if skipped:
+                msg += f' ({skipped} přeskočeno — už existují v jiné sadě)'
+            flash(msg, 'success')
         except urllib.error.HTTPError as e:
             flash(f'Chyba OpenAI API: {e.code}', 'error')
         except Exception as e:
@@ -799,6 +813,31 @@ def ai_hint():
     try:
         result = openai_chat(system_prompt, user_prompt)
         return jsonify({'hint': result.strip()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/ai/explain', methods=['POST'])
+def ai_explain():
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'AI není dostupné'}), 400
+    data = request.get_json(silent=True) or {}
+    word = data.get('word', '').strip()
+    lang = data.get('lang', '')
+    if not word or not lang:
+        return jsonify({'error': 'missing fields'}), 400
+
+    system_prompt = (
+        f"You are a language teacher. A student is learning {lang}. "
+        f"Explain the given word/phrase in Czech. Include:\n"
+        f"1. All meanings the word can have in {lang} (numbered)\n"
+        f"2. For each meaning, give a short example sentence in {lang} with Czech translation\n"
+        f"3. If relevant, mention irregular forms, common collocations, or usage notes\n"
+        f"Keep it concise but thorough. Answer in Czech (examples in {lang})."
+    )
+    try:
+        result = openai_chat(system_prompt, word)
+        return jsonify({'explanation': result.strip()})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
