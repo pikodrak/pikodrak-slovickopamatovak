@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-04-10
+
+### Přidáno
+- AI generování slovíček z tématu (OpenAI GPT)
+  - Zadáte téma a počet, AI vygeneruje páry slovíček
+  - Tlačítko "AI" na stránce sady
+- Auto-překlad při přidávání slovíček (tlačítko blesku)
+  - Vyplníte jedno pole, kliknete na blesk, AI doplní překlad
+- Konfigurace OpenAI v config.ini (api_key, model)
+- config.ini přidán do .gitignore (bezpečnost klíčů), config.ini.example jako šablona
+
 ## 0.1.0 — 2026-04-10
 
 ### Přidáno

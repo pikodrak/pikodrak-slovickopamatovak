@@ -49,6 +49,7 @@
         <div class="section-header">
             <h2>Slovíčka</h2>
             <div style="display:flex; gap:8px; align-items:center;">
+                {% if AI_ENABLED %}<a href="{{ url_for('ai_generate', set_id=ws.id) }}" class="btn btn-secondary btn-sm">AI</a>{% endif %}
                 <a href="{{ url_for('import_words', set_id=ws.id) }}" class="btn btn-outline btn-sm">Import</a>
                 <span style="color:var(--text-light); font-size:0.85rem;">{{ ws.words|length }}</span>
             </div>
@@ -71,9 +72,10 @@
         </div>
         {% endfor %}
 
-        <form class="add-word-form" method="POST" action="{{ url_for('add_word', set_id=ws.id) }}">
-            <input type="text" name="word_a" placeholder="{{ ws.lang_a_name }}" required>
-            <input type="text" name="word_b" placeholder="{{ ws.lang_b_name }}" required>
+        <form class="add-word-form" method="POST" action="{{ url_for('add_word', set_id=ws.id) }}" id="addWordForm">
+            <input type="text" name="word_a" id="addWordA" placeholder="{{ ws.lang_a_name }}" required>
+            <input type="text" name="word_b" id="addWordB" placeholder="{{ ws.lang_b_name }}" required>
+            {% if AI_ENABLED %}<button type="button" class="btn btn-outline btn-sm" onclick="autoTranslate('a')" title="Přeložit A→B" id="translateBtn">&#9889;</button>{% endif %}
             <button type="submit" class="btn btn-primary btn-sm">+</button>
         </form>
     </div>
@@ -124,5 +126,47 @@ function closeEditModal() {
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
 });
+
+function autoTranslate(direction) {
+    var wordA = document.getElementById('addWordA');
+    var wordB = document.getElementById('addWordB');
+    var btn = document.getElementById('translateBtn');
+    var fromWord, fromLang, toLang, targetField;
+
+    if (direction === 'a' && wordA.value.trim()) {
+        fromWord = wordA.value.trim();
+        fromLang = {{ ws.lang_a_name|tojson }};
+        toLang = {{ ws.lang_b_name|tojson }};
+        targetField = wordB;
+    } else if (direction === 'b' && wordB.value.trim()) {
+        fromWord = wordB.value.trim();
+        fromLang = {{ ws.lang_b_name|tojson }};
+        toLang = {{ ws.lang_a_name|tojson }};
+        targetField = wordA;
+    } else {
+        // Try whichever field has content
+        if (wordA.value.trim()) {
+            return autoTranslate('a');
+        } else if (wordB.value.trim()) {
+            return autoTranslate('b');
+        }
+        return;
+    }
+
+    btn.textContent = '...';
+    btn.disabled = true;
+    fetch('/ai/translate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({word: fromWord, from_lang: fromLang, to_lang: toLang})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.translation) targetField.value = data.translation;
+        else if (data.error) alert(data.error);
+    })
+    .catch(err => alert('Chyba překladu'))
+    .finally(() => { btn.textContent = '\u26A1'; btn.disabled = false; });
+}
 </script>
 {% endblock %}

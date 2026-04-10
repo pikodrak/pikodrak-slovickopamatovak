@@ -1,6 +1,6 @@
 [app]
 name = SlovíčkoPamatovák
-version = 0.1.0
+version = 0.2.0
 secret_key =
 debug = true
 host = 0.0.0.0
@@ -8,6 +8,10 @@ port = 5001
 
 [database]
 uri = sqlite:///slovickopamatovak.db
+
+[openai]
+api_key =
+model = gpt-4o-mini
 
 [languages]
 # kód = Název (jeden jazyk na řádek)

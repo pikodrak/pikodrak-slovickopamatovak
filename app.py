@@ -1,6 +1,9 @@
 import os
+import json
 import secrets
 import configparser
+import urllib.request
+import urllib.error
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -22,6 +25,8 @@ DB_URI = cfg.get('database', 'uri', fallback='sqlite:///slovickopamatovak.db')
 DEFAULT_LANG_A = cfg.get('defaults', 'lang_a', fallback='cs')
 DEFAULT_LANG_B = cfg.get('defaults', 'lang_b', fallback='es')
 MIN_PASSWORD_LENGTH = cfg.getint('defaults', 'min_password_length', fallback=4)
+OPENAI_API_KEY = cfg.get('openai', 'api_key', fallback='')
+OPENAI_MODEL = cfg.get('openai', 'model', fallback='gpt-4o-mini')
 
 LANGUAGES = []
 if cfg.has_section('languages'):
@@ -117,7 +122,8 @@ def load_user(user_id):
 def inject_globals():
     return {'APP_NAME': APP_NAME, 'APP_VERSION': APP_VERSION,
             'LANGUAGES': LANGUAGES, 'LANG_MAP': LANG_MAP,
-            'DEFAULT_LANG_A': DEFAULT_LANG_A, 'DEFAULT_LANG_B': DEFAULT_LANG_B}
+            'DEFAULT_LANG_A': DEFAULT_LANG_A, 'DEFAULT_LANG_B': DEFAULT_LANG_B,
+            'AI_ENABLED': bool(OPENAI_API_KEY)}
 
 
 # --- Auth routes ---
@@ -637,6 +643,103 @@ def changelog():
     with open(changelog_path, 'r', encoding='utf-8') as f:
         raw = f.read()
     return render_template('changelog.html', raw=raw)
+
+
+# --- AI features ---
+
+def openai_chat(system_prompt, user_prompt):
+    """Call OpenAI chat API. Returns the response text or raises an exception."""
+    req = urllib.request.Request(
+        'https://api.openai.com/v1/chat/completions',
+        data=json.dumps({
+            'model': OPENAI_MODEL,
+            'messages': [
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_prompt},
+            ],
+            'temperature': 0.7,
+        }).encode(),
+        headers={
+            'Authorization': f'Bearer {OPENAI_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+    )
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        data = json.loads(resp.read())
+    return data['choices'][0]['message']['content']
+
+
+@app.route('/set/<int:set_id>/ai-generate', methods=['GET', 'POST'])
+@login_required
+def ai_generate(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup.', 'error')
+        return redirect(url_for('dashboard'))
+    if not OPENAI_API_KEY:
+        flash('OpenAI API klíč není nastaven v config.ini.', 'error')
+        return redirect(url_for('view_set', set_id=set_id))
+
+    if request.method == 'POST':
+        topic = request.form.get('topic', '').strip()
+        count = min(int(request.form.get('count', 20)), 100)
+        if not topic:
+            flash('Zadejte téma.', 'error')
+            return render_template('ai_generate.html', ws=ws)
+
+        system_prompt = (
+            f"You are a vocabulary generator. Generate exactly {count} vocabulary word pairs "
+            f"for learning languages. Source language: {ws.lang_a_name}. Target language: {ws.lang_b_name}.\n"
+            f"Return ONLY lines in format: word_in_{ws.lang_a_name};word_in_{ws.lang_b_name}\n"
+            f"One pair per line. No numbering, no headers, no explanation. Just the word pairs."
+        )
+        user_prompt = f"Topic: {topic}"
+
+        try:
+            result = openai_chat(system_prompt, user_prompt)
+            added = 0
+            for line in result.splitlines():
+                line = line.strip()
+                if not line or ';' not in line:
+                    continue
+                parts = line.split(';', 1)
+                if len(parts) == 2:
+                    a, b = parts[0].strip(), parts[1].strip()
+                    if a and b:
+                        db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
+                        added += 1
+            db.session.commit()
+            flash(f'AI vygenerovalo {added} slovíček na téma "{topic}".', 'success')
+        except urllib.error.HTTPError as e:
+            flash(f'Chyba OpenAI API: {e.code}', 'error')
+        except Exception as e:
+            flash(f'Chyba: {e}', 'error')
+        return redirect(url_for('view_set', set_id=set_id))
+
+    return render_template('ai_generate.html', ws=ws)
+
+
+@app.route('/ai/translate', methods=['POST'])
+@login_required
+def ai_translate():
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'OpenAI API klíč není nastaven'}), 400
+    data = request.get_json(silent=True) or {}
+    word = data.get('word', '').strip()
+    from_lang = data.get('from_lang', '')
+    to_lang = data.get('to_lang', '')
+    if not word or not from_lang or not to_lang:
+        return jsonify({'error': 'missing fields'}), 400
+
+    system_prompt = (
+        f"You are a translator. Translate the given word or short phrase from {from_lang} to {to_lang}. "
+        f"Return ONLY the translation, nothing else. No explanation, no alternatives."
+    )
+    try:
+        result = openai_chat(system_prompt, word)
+        return jsonify({'translation': result.strip()})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 # --- Error handlers ---
