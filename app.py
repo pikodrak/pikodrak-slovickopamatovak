@@ -1127,9 +1127,9 @@ def tts(lang, text):
     lang_name = lang_names.get(lang, '')
     # Add language context so TTS detects correctly, especially for short words
     if lang_name:
-        tts_input = f'[{lang_name}] {text}... {text}'
+        tts_input = f'[{lang_name}] {text}'
     else:
-        tts_input = f'{text}... {text}'
+        tts_input = text
 
     voice = 'nova'
     try:
