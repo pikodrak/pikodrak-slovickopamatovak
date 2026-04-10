@@ -7,6 +7,11 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='offline.js') }}" defer></script>
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#e65100">
+    <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -47,6 +52,10 @@
         var m = document.getElementById('userMenu');
         if (m) m.classList.remove('open');
     });
+    // Service worker + offline
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(function(){});
+    }
     </script>
     {% endblock %}
     {% block scripts %}{% endblock %}

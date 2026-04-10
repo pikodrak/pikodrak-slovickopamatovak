@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.0 — 2026-04-10
+
+### Přidáno
+- PWA (Progressive Web App) podpora
+  - Manifest pro instalaci na domovskou obrazovku (Android i iOS)
+  - Service worker s offline cache (HTML, CSS, JS)
+  - Stránky se cachují při návštěvě, fungují i bez internetu
+  - Offline fallback stránka pro necachované URL
+- Offline procvičování
+  - Slovíčka se automaticky stahují do IndexedDB při načtení
+  - Procvičování kartičkami funguje kompletně offline
+  - Výsledky se ukládají lokálně a odesílají po připojení
+  - Auto-sync při obnovení připojení
+- Endpoint /api/my-data pro stažení všech dat uživatele
+- Ikony (SVG + PNG 192/512)
+
 ## 0.5.1 — 2026-04-10
 
 ### Změněno

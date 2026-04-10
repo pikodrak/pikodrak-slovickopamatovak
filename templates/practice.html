@@ -262,7 +262,12 @@ function logResult(wordId, correct) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({word_id: wordId, correct: correct})
-    }).catch(() => {});
+    }).catch(() => {
+        // Offline — queue for later
+        if (typeof queuePracticeResult === 'function') {
+            queuePracticeResult(wordId, correct);
+        }
+    });
 }
 
 // --- FLIP mode ---

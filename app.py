@@ -644,6 +644,23 @@ def api_docs():
     return render_template('api_docs.html')
 
 
+# --- Offline sync endpoint ---
+
+@app.route('/api/my-data')
+@login_required
+def my_data():
+    """Download all user data for offline use."""
+    sets = WordSet.query.filter_by(user_id=current_user.id).all()
+    return jsonify({
+        'sets': [{
+            'id': s.id, 'name': s.name, 'lang_a': s.lang_a, 'lang_b': s.lang_b,
+            'lang_a_name': s.lang_a_name, 'lang_b_name': s.lang_b_name,
+            'words': [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in s.words]
+        } for s in sets],
+        'timestamp': datetime.utcnow().isoformat()
+    })
+
+
 # --- Practice mode ---
 
 @app.route('/set/<int:set_id>/practice')
