@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}API Tokeny — {{ APP_NAME }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('dashboard') }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <div class="page-header-row">
+            <h1>API Tokeny</h1>
+            <a href="{{ url_for('api_docs') }}" class="btn btn-outline btn-sm">Dokumentace</a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    {% if category == 'token' %}
+    <div class="card" style="background: #e8f5e9; border: 2px solid #66bb6a;">
+        <div style="font-weight:700; margin-bottom:8px; color: var(--success);">Nový token vytvořen</div>
+        <div style="font-size:0.75rem; color:var(--text-light); margin-bottom:8px;">
+            Zkopírujte si token — po opuštění stránky ho už neuvidíte!
+        </div>
+        <code style="display:block; padding:12px; background:white; border-radius:8px; word-break:break-all; font-size:0.85rem; user-select:all;">{{ message }}</code>
+    </div>
+    {% else %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endif %}
+    {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <h2 style="margin-bottom: 16px;">Vytvořit nový token</h2>
+        <form method="POST" action="{{ url_for('create_token') }}">
+            <div class="form-group">
+                <label>Popis</label>
+                <input type="text" name="name" required placeholder="např. Skript pro import">
+            </div>
+            <div class="form-group">
+                <label>Oprávnění</label>
+                <div class="direction-picker">
+                    <button type="button" class="direction-btn active" data-perm="read" onclick="setPerm('read')">
+                        Read only
+                    </button>
+                    <button type="button" class="direction-btn" data-perm="rw" onclick="setPerm('rw')">
+                        Read &amp; Write
+                    </button>
+                </div>
+                <input type="hidden" name="permission" id="permInput" value="read">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Vytvořit token</button>
+        </form>
+    </div>
+
+    {% if tokens %}
+    <div class="card">
+        <h2 style="margin-bottom: 16px;">Existující tokeny</h2>
+        {% for t in tokens %}
+        <div class="word-row">
+            <div class="word-texts" style="flex-direction:column; gap:2px;">
+                <span class="word-czech">{{ t.name }}</span>
+                <span style="font-size:0.75rem; color:var(--text-light);">
+                    {{ t.permission|upper }} · {{ t.token[:8] }}... · {{ t.created_at.strftime('%d.%m.%Y') }}
+                </span>
+            </div>
+            <div class="word-actions">
+                <form method="POST" action="{{ url_for('delete_token', token_id=t.id) }}"
+                      onsubmit="return confirm('Smazat token?')">
+                    <button type="submit" title="Smazat">&#10005;</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setPerm(p) {
+    document.getElementById('permInput').value = p;
+    document.querySelectorAll('.direction-btn[data-perm]').forEach(b => {
+        b.classList.toggle('active', b.dataset.perm === p);
+    });
+}
+</script>
+{% endblock %}

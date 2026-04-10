@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% block title %}API Dokumentace — {{ APP_NAME }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('tokens') }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block head %}
+<style>
+    .api-section { margin-bottom: 32px; }
+    .api-section h2 { font-size: 1.2rem; margin-bottom: 12px; color: var(--primary); }
+    .api-endpoint {
+        background: var(--card-bg); border-radius: var(--radius);
+        box-shadow: var(--shadow); padding: 16px 20px; margin-bottom: 12px;
+    }
+    .api-method {
+        display: inline-block; padding: 2px 8px; border-radius: 4px;
+        font-size: 0.75rem; font-weight: 700; color: white; margin-right: 8px; vertical-align: middle;
+    }
+    .api-method.get { background: #2196f3; }
+    .api-method.post { background: #4caf50; }
+    .api-method.put { background: #ff9800; }
+    .api-method.delete { background: #f44336; }
+    .api-path { font-family: monospace; font-size: 0.95rem; font-weight: 600; }
+    .api-desc { margin-top: 8px; font-size: 0.85rem; color: var(--text-light); }
+    .api-perm {
+        display: inline-block; font-size: 0.7rem; padding: 1px 6px; border-radius: 3px;
+        background: #e3f2fd; color: #1565c0; margin-left: 8px; vertical-align: middle;
+    }
+    .api-perm.rw { background: #fff3e0; color: #e65100; }
+    pre.api-example {
+        background: #263238; color: #eeffff; padding: 14px 16px; border-radius: 8px;
+        font-size: 0.8rem; overflow-x: auto; margin-top: 10px; line-height: 1.5;
+    }
+    .api-body, .api-response { margin-top: 8px; font-size: 0.82rem; }
+    .api-body strong, .api-response strong { display: block; margin-bottom: 4px; color: var(--text); }
+</style>
+{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <h1>API Dokumentace</h1>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-bottom: 8px;">Autentizace</h2>
+        <p style="font-size: 0.9rem; color: var(--text-light); margin-bottom: 12px;">
+            Všechny API požadavky vyžadují Bearer token v hlavičce <code>Authorization</code>.
+        </p>
+        <pre class="api-example">Authorization: Bearer &lt;váš-token&gt;</pre>
+        <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 12px;">
+            Tokeny: <strong style="display:inline;">Read</strong> (jen čtení)
+            nebo <strong style="display:inline;">Read &amp; Write</strong> (čtení i zápis).
+        </p>
+    </div>
+
+    <div class="api-section">
+        <h2>Sady slovíček</h2>
+        <div class="api-endpoint">
+            <span class="api-method get">GET</span><span class="api-path">/api/sets</span><span class="api-perm">READ</span>
+            <div class="api-desc">Seznam všech sad.</div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method post">POST</span><span class="api-path">/api/sets</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Vytvoří novou sadu.</div>
+            <div class="api-body"><strong>Tělo:</strong><code>{"name": "Lekce 2", "lang_a": "cs", "lang_b": "es"}</code></div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method get">GET</span><span class="api-path">/api/sets/:id</span><span class="api-perm">READ</span>
+            <div class="api-desc">Detail sady včetně slovíček.</div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method put">PUT</span><span class="api-path">/api/sets/:id</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Upraví sadu (name, lang_a, lang_b).</div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method delete">DELETE</span><span class="api-path">/api/sets/:id</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Smaže sadu a všechna slovíčka.</div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method post">POST</span><span class="api-path">/api/sets/:id/share</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Zapne/vypne sdílení (toggle). Vrátí share_url.</div>
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Slovíčka</h2>
+        <div class="api-endpoint">
+            <span class="api-method get">GET</span><span class="api-path">/api/sets/:id/words</span><span class="api-perm">READ</span>
+            <div class="api-desc">Seznam slovíček v sadě.</div>
+            <div class="api-response"><strong>Odpověď:</strong>
+                <pre class="api-example">[{"id": 1, "word_a": "DECIR", "word_b": "říkat"}, ...]</pre>
+            </div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method post">POST</span><span class="api-path">/api/sets/:id/words</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Přidá slovíčko.</div>
+            <div class="api-body"><strong>Tělo:</strong><code>{"word_a": "DECIR", "word_b": "říkat"}</code></div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method put">PUT</span><span class="api-path">/api/words/:id</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Upraví slovíčko.</div>
+        </div>
+        <div class="api-endpoint">
+            <span class="api-method delete">DELETE</span><span class="api-path">/api/words/:id</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Smaže slovíčko.</div>
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Hromadný import</h2>
+        <div class="api-endpoint">
+            <span class="api-method post">POST</span><span class="api-path">/api/sets/:id/import</span><span class="api-perm rw">RW</span>
+            <div class="api-desc">Hromadný import — JSON pole nebo textový formát.</div>
+            <div class="api-body"><strong>Varianta 1 — JSON:</strong>
+                <pre class="api-example">{"words": [{"word_a": "DECIR", "word_b": "říkat"}, ...]}</pre>
+            </div>
+            <div class="api-body"><strong>Varianta 2 — text (středník/tabulátor):</strong>
+                <pre class="api-example">{"text": "DECIR;říkat\nDAR;dát\nIR;jít/jet"}</pre>
+            </div>
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Kódy jazyků</h2>
+        <div class="card">
+            <div style="font-size:0.85rem; line-height:1.8;">
+                {% for code, name in LANGUAGES %}
+                <code>{{ code }}</code> = {{ name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="api-section">
+        <h2>Chybové odpovědi</h2>
+        <div class="card">
+            <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+                <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 0; font-weight:600;">401</td><td>Chybí/neplatný token</td></tr>
+                <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 0; font-weight:600;">403</td><td>Nedostatečná oprávnění nebo cizí sada</td></tr>
+                <tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 0; font-weight:600;">404</td><td>Neexistuje</td></tr>
+                <tr><td style="padding:8px 0; font-weight:600;">400</td><td>Chybí povinné pole</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

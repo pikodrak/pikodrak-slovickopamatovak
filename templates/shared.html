@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}{{ ws.name }} — {{ APP_NAME }}{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="card" style="text-align:center; padding:24px;">
+        <h2 style="margin-bottom:4px;">{{ ws.name }}</h2>
+        <div style="font-size:0.85rem; color:var(--text-light); margin-bottom:4px;">
+            {{ ws.lang_a_name }} &harr; {{ ws.lang_b_name }} &middot; {{ ws.words|length }} slovíček
+        </div>
+        <div style="font-size:0.8rem; color:var(--text-light); margin-bottom:16px;">
+            od {{ ws.owner.username }}
+        </div>
+
+        {% if ws.words %}
+        <a href="{{ url_for('shared_practice', token=ws.share_token) }}" class="btn btn-success btn-block btn-lg" style="margin-bottom:12px;">
+            Procvičovat
+        </a>
+        {% endif %}
+
+        {% if current_user.is_authenticated %}
+        <form method="POST" action="{{ url_for('import_shared', token=ws.share_token) }}">
+            <button type="submit" class="btn btn-secondary btn-block">
+                Importovat do mých sad
+            </button>
+        </form>
+        {% else %}
+        <a href="{{ url_for('login') }}" class="btn btn-outline btn-block" style="margin-top:4px;">
+            Přihlaste se pro import do svých sad
+        </a>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <div class="section-header">
+            <h2>Slovíčka</h2>
+            <span style="color:var(--text-light); font-size:0.85rem;">{{ ws.words|length }}</span>
+        </div>
+        {% for word in ws.words %}
+        <div class="word-row">
+            <div class="word-texts">
+                <span class="word-czech">{{ word.word_a }}</span>
+                <span class="word-sep">=</span>
+                <span class="word-spanish">{{ word.word_b }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

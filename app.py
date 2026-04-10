@@ -1,0 +1,637 @@
+import os
+import secrets
+import configparser
+from functools import wraps
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
+
+# --- Load config ---
+cfg = configparser.ConfigParser()
+cfg.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini'), encoding='utf-8')
+
+APP_NAME = cfg.get('app', 'name', fallback='SlovíčkoPamatovák')
+SECRET_KEY = cfg.get('app', 'secret_key', fallback='') or os.environ.get('SECRET_KEY', '') or secrets.token_hex(32)
+DEBUG = cfg.getboolean('app', 'debug', fallback=True)
+HOST = cfg.get('app', 'host', fallback='0.0.0.0')
+PORT = cfg.getint('app', 'port', fallback=5001)
+DB_URI = cfg.get('database', 'uri', fallback='sqlite:///slovickopamatovak.db')
+DEFAULT_LANG_A = cfg.get('defaults', 'lang_a', fallback='cs')
+DEFAULT_LANG_B = cfg.get('defaults', 'lang_b', fallback='es')
+MIN_PASSWORD_LENGTH = cfg.getint('defaults', 'min_password_length', fallback=4)
+
+LANGUAGES = []
+if cfg.has_section('languages'):
+    for code in cfg.options('languages'):
+        LANGUAGES.append((code, cfg.get('languages', code)))
+if not LANGUAGES:
+    LANGUAGES = [('cs', 'Čeština'), ('es', 'Španělština'), ('en', 'Angličtina')]
+LANG_MAP = dict(LANGUAGES)
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['SQLALCHEMY_DATABASE_URI'] = DB_URI
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+login_manager = LoginManager(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Pro přístup se musíte přihlásit.'
+
+
+# --- Models ---
+
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    sets = db.relationship('WordSet', backref='owner', lazy=True, cascade='all, delete-orphan')
+
+
+class WordSet(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    lang_a = db.Column(db.String(10), nullable=False, default='cs')
+    lang_b = db.Column(db.String(10), nullable=False, default='es')
+    share_token = db.Column(db.String(32), unique=True, nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    words = db.relationship('Word', backref='word_set', lazy=True, cascade='all, delete-orphan')
+
+    @property
+    def lang_a_name(self):
+        return LANG_MAP.get(self.lang_a, self.lang_a)
+
+    @property
+    def lang_b_name(self):
+        return LANG_MAP.get(self.lang_b, self.lang_b)
+
+
+class Word(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    word_a = db.Column(db.String(300), nullable=False)
+    word_b = db.Column(db.String(300), nullable=False)
+    set_id = db.Column(db.Integer, db.ForeignKey('word_set.id'), nullable=False)
+
+
+class ApiToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False)
+    permission = db.Column(db.String(10), nullable=False, default='read')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref=db.backref('api_tokens', lazy=True, cascade='all, delete-orphan'))
+
+
+def api_auth(write=False):
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            auth = request.headers.get('Authorization', '')
+            if not auth.startswith('Bearer '):
+                return jsonify({'error': 'Missing or invalid Authorization header. Use: Bearer <token>'}), 401
+            token_str = auth[7:]
+            tok = ApiToken.query.filter_by(token=token_str).first()
+            if not tok:
+                return jsonify({'error': 'Invalid token'}), 401
+            if write and tok.permission != 'rw':
+                return jsonify({'error': 'Token does not have write permission'}), 403
+            request.api_user = tok.user
+            request.api_token = tok
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+
+@app.context_processor
+def inject_globals():
+    return {'APP_NAME': APP_NAME, 'LANGUAGES': LANGUAGES, 'LANG_MAP': LANG_MAP,
+            'DEFAULT_LANG_A': DEFAULT_LANG_A, 'DEFAULT_LANG_B': DEFAULT_LANG_B}
+
+
+# --- Auth routes ---
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        password2 = request.form.get('password2', '')
+        if not username or not password:
+            flash('Vyplňte všechna pole.', 'error')
+        elif len(password) < MIN_PASSWORD_LENGTH:
+            flash(f'Heslo musí mít alespoň {MIN_PASSWORD_LENGTH} znaky.', 'error')
+        elif password != password2:
+            flash('Hesla se neshodují.', 'error')
+        elif User.query.filter_by(username=username).first():
+            flash('Toto uživatelské jméno je již obsazené.', 'error')
+        else:
+            user = User(username=username, password_hash=generate_password_hash(password))
+            db.session.add(user)
+            db.session.commit()
+            login_user(user)
+            flash('Registrace proběhla úspěšně!', 'success')
+            return redirect(url_for('dashboard'))
+    return render_template('register.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user)
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Nesprávné jméno nebo heslo.', 'error')
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+
+# --- Dashboard ---
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    sets = WordSet.query.filter_by(user_id=current_user.id).order_by(WordSet.created_at.desc()).all()
+    return render_template('dashboard.html', sets=sets)
+
+
+# --- Word Set CRUD ---
+
+@app.route('/set/new', methods=['GET', 'POST'])
+@login_required
+def new_set():
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        lang_a = request.form.get('lang_a', DEFAULT_LANG_A)
+        lang_b = request.form.get('lang_b', DEFAULT_LANG_B)
+        if not name:
+            flash('Zadejte název sady.', 'error')
+            return render_template('set_form.html', edit=False)
+        ws = WordSet(name=name, lang_a=lang_a, lang_b=lang_b, user_id=current_user.id)
+        db.session.add(ws)
+        db.session.commit()
+        return redirect(url_for('view_set', set_id=ws.id))
+    return render_template('set_form.html', edit=False)
+
+
+@app.route('/set/<int:set_id>')
+@login_required
+def view_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup k této sadě.', 'error')
+        return redirect(url_for('dashboard'))
+    return render_template('view_set.html', ws=ws)
+
+
+@app.route('/set/<int:set_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup k této sadě.', 'error')
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        lang_a = request.form.get('lang_a', ws.lang_a)
+        lang_b = request.form.get('lang_b', ws.lang_b)
+        if name:
+            ws.name = name
+            ws.lang_a = lang_a
+            ws.lang_b = lang_b
+            db.session.commit()
+            flash('Sada byla uložena.', 'success')
+        return redirect(url_for('view_set', set_id=ws.id))
+    return render_template('set_form.html', edit=True, ws=ws)
+
+
+@app.route('/set/<int:set_id>/import', methods=['GET', 'POST'])
+@login_required
+def import_words(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup k této sadě.', 'error')
+        return redirect(url_for('dashboard'))
+    if request.method == 'POST':
+        text = ''
+        f = request.files.get('file')
+        if f and f.filename:
+            text = f.read().decode('utf-8', errors='ignore')
+        else:
+            text = request.form.get('text', '')
+        count = 0
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            sep = ';' if ';' in line else '\t' if '\t' in line else None
+            if not sep:
+                continue
+            parts = line.split(sep, 1)
+            if len(parts) != 2:
+                continue
+            a = parts[0].strip()
+            b = parts[1].strip()
+            if a and b:
+                db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
+                count += 1
+        db.session.commit()
+        flash(f'Importováno {count} slovíček.', 'success')
+        return redirect(url_for('view_set', set_id=ws.id))
+    return render_template('import.html', ws=ws)
+
+
+@app.route('/set/<int:set_id>/delete', methods=['POST'])
+@login_required
+def delete_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup k této sadě.', 'error')
+        return redirect(url_for('dashboard'))
+    db.session.delete(ws)
+    db.session.commit()
+    flash('Sada byla smazána.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+# --- Sharing ---
+
+@app.route('/set/<int:set_id>/share', methods=['POST'])
+@login_required
+def toggle_share(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup.', 'error')
+        return redirect(url_for('dashboard'))
+    if ws.share_token:
+        ws.share_token = None
+        flash('Sdílení vypnuto.', 'success')
+    else:
+        ws.share_token = secrets.token_urlsafe(16)
+        flash('Sdílení zapnuto.', 'success')
+    db.session.commit()
+    return redirect(url_for('view_set', set_id=ws.id))
+
+
+@app.route('/shared/<token>')
+def shared_set(token):
+    ws = WordSet.query.filter_by(share_token=token).first_or_404()
+    return render_template('shared.html', ws=ws)
+
+
+@app.route('/shared/<token>/practice')
+def shared_practice(token):
+    ws = WordSet.query.filter_by(share_token=token).first_or_404()
+    if not ws.words:
+        flash('Sada neobsahuje žádná slovíčka.', 'error')
+        return redirect(url_for('shared_set', token=token))
+    words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
+    return render_template('practice.html', ws=ws, words=words, shared_token=token)
+
+
+@app.route('/shared/<token>/import', methods=['POST'])
+@login_required
+def import_shared(token):
+    source = WordSet.query.filter_by(share_token=token).first_or_404()
+    new_ws = WordSet(
+        name=source.name, lang_a=source.lang_a, lang_b=source.lang_b,
+        user_id=current_user.id
+    )
+    db.session.add(new_ws)
+    db.session.flush()
+    for w in source.words:
+        db.session.add(Word(word_a=w.word_a, word_b=w.word_b, set_id=new_ws.id))
+    db.session.commit()
+    flash(f'Sada "{source.name}" importována ({len(source.words)} slovíček).', 'success')
+    return redirect(url_for('view_set', set_id=new_ws.id))
+
+
+# --- Word CRUD ---
+
+@app.route('/set/<int:set_id>/word/add', methods=['POST'])
+@login_required
+def add_word(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    word_a = request.form.get('word_a', '').strip()
+    word_b = request.form.get('word_b', '').strip()
+    if not word_a or not word_b:
+        flash('Vyplňte oba výrazy.', 'error')
+        return redirect(url_for('view_set', set_id=set_id))
+    word = Word(word_a=word_a, word_b=word_b, set_id=ws.id)
+    db.session.add(word)
+    db.session.commit()
+    return redirect(url_for('view_set', set_id=set_id))
+
+
+@app.route('/word/<int:word_id>/delete', methods=['POST'])
+@login_required
+def delete_word(word_id):
+    word = Word.query.get_or_404(word_id)
+    ws = word.word_set
+    if ws.user_id != current_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    set_id = ws.id
+    db.session.delete(word)
+    db.session.commit()
+    return redirect(url_for('view_set', set_id=set_id))
+
+
+@app.route('/word/<int:word_id>/edit', methods=['POST'])
+@login_required
+def edit_word(word_id):
+    word = Word.query.get_or_404(word_id)
+    ws = word.word_set
+    if ws.user_id != current_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    word_a = request.form.get('word_a', '').strip()
+    word_b = request.form.get('word_b', '').strip()
+    if word_a and word_b:
+        word.word_a = word_a
+        word.word_b = word_b
+        db.session.commit()
+    return redirect(url_for('view_set', set_id=ws.id))
+
+
+# --- API Token management (web UI) ---
+
+@app.route('/tokens')
+@login_required
+def tokens():
+    user_tokens = ApiToken.query.filter_by(user_id=current_user.id).order_by(ApiToken.created_at.desc()).all()
+    return render_template('tokens.html', tokens=user_tokens)
+
+
+@app.route('/tokens/new', methods=['POST'])
+@login_required
+def create_token():
+    name = request.form.get('name', '').strip()
+    permission = request.form.get('permission', 'read')
+    if permission not in ('read', 'rw'):
+        permission = 'read'
+    if not name:
+        flash('Zadejte popis tokenu.', 'error')
+        return redirect(url_for('tokens'))
+    raw_token = secrets.token_hex(32)
+    t = ApiToken(token=raw_token, name=name, permission=permission, user_id=current_user.id)
+    db.session.add(t)
+    db.session.commit()
+    flash(f'Token vytvořen: {raw_token}', 'token')
+    return redirect(url_for('tokens'))
+
+
+@app.route('/tokens/<int:token_id>/delete', methods=['POST'])
+@login_required
+def delete_token(token_id):
+    t = ApiToken.query.get_or_404(token_id)
+    if t.user_id != current_user.id:
+        flash('Nemáte přístup.', 'error')
+        return redirect(url_for('tokens'))
+    db.session.delete(t)
+    db.session.commit()
+    flash('Token smazán.', 'success')
+    return redirect(url_for('tokens'))
+
+
+# --- REST API ---
+
+def set_to_dict(ws, include_words=False):
+    d = {
+        'id': ws.id, 'name': ws.name, 'lang_a': ws.lang_a, 'lang_b': ws.lang_b,
+        'word_count': len(ws.words), 'created_at': ws.created_at.isoformat(),
+        'share_url': url_for('shared_set', token=ws.share_token, _external=True) if ws.share_token else None,
+    }
+    if include_words:
+        d['words'] = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
+    return d
+
+
+@app.route('/api/sets', methods=['GET'])
+@api_auth(write=False)
+def api_list_sets():
+    sets = WordSet.query.filter_by(user_id=request.api_user.id).order_by(WordSet.created_at.desc()).all()
+    return jsonify([set_to_dict(s) for s in sets])
+
+
+@app.route('/api/sets', methods=['POST'])
+@api_auth(write=True)
+def api_create_set():
+    data = request.get_json(silent=True) or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': 'name is required'}), 400
+    lang_a = data.get('lang_a', 'cs')
+    lang_b = data.get('lang_b', 'es')
+    ws = WordSet(name=name, lang_a=lang_a, lang_b=lang_b, user_id=request.api_user.id)
+    db.session.add(ws)
+    db.session.commit()
+    return jsonify(set_to_dict(ws)), 201
+
+
+@app.route('/api/sets/<int:set_id>', methods=['GET'])
+@api_auth(write=False)
+def api_get_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    return jsonify(set_to_dict(ws, include_words=True))
+
+
+@app.route('/api/sets/<int:set_id>', methods=['PUT'])
+@api_auth(write=True)
+def api_update_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    name = data.get('name', '').strip()
+    if name:
+        ws.name = name
+    if 'lang_a' in data:
+        ws.lang_a = data['lang_a']
+    if 'lang_b' in data:
+        ws.lang_b = data['lang_b']
+    db.session.commit()
+    return jsonify(set_to_dict(ws))
+
+
+@app.route('/api/sets/<int:set_id>', methods=['DELETE'])
+@api_auth(write=True)
+def api_delete_set(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    db.session.delete(ws)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/sets/<int:set_id>/share', methods=['POST'])
+@api_auth(write=True)
+def api_toggle_share(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    if ws.share_token:
+        ws.share_token = None
+    else:
+        ws.share_token = secrets.token_urlsafe(16)
+    db.session.commit()
+    return jsonify(set_to_dict(ws))
+
+
+@app.route('/api/sets/<int:set_id>/words', methods=['GET'])
+@api_auth(write=False)
+def api_list_words(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    return jsonify([{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words])
+
+
+@app.route('/api/sets/<int:set_id>/words', methods=['POST'])
+@api_auth(write=True)
+def api_add_word(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    word_a = data.get('word_a', '').strip()
+    word_b = data.get('word_b', '').strip()
+    if not word_a or not word_b:
+        return jsonify({'error': 'word_a and word_b are required'}), 400
+    word = Word(word_a=word_a, word_b=word_b, set_id=ws.id)
+    db.session.add(word)
+    db.session.commit()
+    return jsonify({'id': word.id, 'word_a': word.word_a, 'word_b': word.word_b}), 201
+
+
+@app.route('/api/words/<int:word_id>', methods=['PUT'])
+@api_auth(write=True)
+def api_update_word(word_id):
+    word = Word.query.get_or_404(word_id)
+    if word.word_set.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    word_a = data.get('word_a', '').strip()
+    word_b = data.get('word_b', '').strip()
+    if not word_a or not word_b:
+        return jsonify({'error': 'word_a and word_b are required'}), 400
+    word.word_a = word_a
+    word.word_b = word_b
+    db.session.commit()
+    return jsonify({'id': word.id, 'word_a': word.word_a, 'word_b': word.word_b})
+
+
+@app.route('/api/words/<int:word_id>', methods=['DELETE'])
+@api_auth(write=True)
+def api_delete_word(word_id):
+    word = Word.query.get_or_404(word_id)
+    if word.word_set.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    db.session.delete(word)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/sets/<int:set_id>/import', methods=['POST'])
+@api_auth(write=True)
+def api_import_words(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != request.api_user.id:
+        return jsonify({'error': 'forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    words_list = data.get('words')
+    text = data.get('text', '')
+    count = 0
+    if words_list and isinstance(words_list, list):
+        for w in words_list:
+            a = w.get('word_a', '').strip()
+            b = w.get('word_b', '').strip()
+            if a and b:
+                db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
+                count += 1
+    elif text:
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            sep = ';' if ';' in line else '\t' if '\t' in line else None
+            if not sep:
+                continue
+            parts = line.split(sep, 1)
+            if len(parts) != 2:
+                continue
+            a = parts[0].strip()
+            b = parts[1].strip()
+            if a and b:
+                db.session.add(Word(word_a=a, word_b=b, set_id=ws.id))
+                count += 1
+    else:
+        return jsonify({'error': 'Provide "words" array or "text" field'}), 400
+    db.session.commit()
+    return jsonify({'imported': count}), 201
+
+
+# --- API docs page ---
+
+@app.route('/api/docs')
+def api_docs():
+    return render_template('api_docs.html')
+
+
+# --- Practice mode ---
+
+@app.route('/set/<int:set_id>/practice')
+@login_required
+def practice(set_id):
+    ws = WordSet.query.get_or_404(set_id)
+    if ws.user_id != current_user.id:
+        flash('Nemáte přístup k této sadě.', 'error')
+        return redirect(url_for('dashboard'))
+    if not ws.words:
+        flash('Sada neobsahuje žádná slovíčka.', 'error')
+        return redirect(url_for('view_set', set_id=set_id))
+    words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
+    return render_template('practice.html', ws=ws, words=words, shared_token=None)
+
+
+# --- Init ---
+
+with app.app_context():
+    db.create_all()
+
+
+if __name__ == '__main__':
+    app.run(debug=DEBUG, host=HOST, port=PORT)

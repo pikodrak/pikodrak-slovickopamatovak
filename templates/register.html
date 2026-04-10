@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Registrace — {{ APP_NAME }}{% endblock %}
+{% block navbar %}{% endblock %}
+{% block body %}
+<div class="auth-wrapper">
+    <div class="auth-logo">{{ APP_NAME }}</div>
+    <div class="auth-subtitle">Procvičování slovíček v jakémkoli jazyce</div>
+    <div class="auth-card">
+        <h2>Registrace</h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endwith %}
+        <form method="POST">
+            <div class="form-group">
+                <label>Uživatelské jméno</label>
+                <input type="text" name="username" required autocomplete="username" autofocus>
+            </div>
+            <div class="form-group">
+                <label>Heslo</label>
+                <input type="password" name="password" required autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label>Heslo znovu</label>
+                <input type="password" name="password2" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block btn-lg">Zaregistrovat se</button>
+        </form>
+        <div class="auth-link">
+            Už máte účet? <a href="{{ url_for('login') }}">Přihlaste se</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Moje sady — {{ APP_NAME }}{% endblock %}
+{% block body %}
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="section-header">
+        <h2>Moje sady</h2>
+        <a href="{{ url_for('new_set') }}" class="btn btn-primary btn-sm">+ Nová sada</a>
+    </div>
+
+    {% if sets %}
+        {% for s in sets %}
+        <a href="{{ url_for('view_set', set_id=s.id) }}" class="set-item">
+            <div class="set-info">
+                <h3>{{ s.name }}</h3>
+                <span>{{ s.lang_a_name }} &harr; {{ s.lang_b_name }} &middot; {{ s.words|length }} slovíček</span>
+            </div>
+            <div class="set-arrow">&#8250;</div>
+        </a>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <p>Zatím nemáte žádné sady slovíček.</p>
+            <a href="{{ url_for('new_set') }}" class="btn btn-primary">Vytvořit první sadu</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

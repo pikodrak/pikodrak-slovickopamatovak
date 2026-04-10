@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Import slovíček — {{ ws.name }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('view_set', set_id=ws.id) }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <h1>Import slovíček</h1>
+        <div style="font-size:0.85rem; color:var(--text-light); margin-top:2px;">{{ ws.name }}</div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <h2 style="margin-bottom: 8px;">Nahrát soubor</h2>
+        <p style="color: var(--text-light); font-size: 0.85rem; margin-bottom: 16px;">
+            Formát: <code>{{ ws.lang_a_name }};{{ ws.lang_b_name }}</code> — jeden pár na řádek. Oddělovač středník nebo tabulátor.
+        </p>
+        <form method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>Soubor (.txt, .csv)</label>
+                <input type="file" name="file" accept=".txt,.csv,.tsv" style="padding: 10px 0;">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Importovat ze souboru</button>
+        </form>
+    </div>
+
+    <div style="text-align: center; color: var(--text-light); margin: 12px 0; font-size: 0.85rem;">nebo</div>
+
+    <div class="card">
+        <h2 style="margin-bottom: 8px;">Vložit text</h2>
+        <form method="POST">
+            <div class="form-group">
+                <label>Slovíčka</label>
+                <textarea name="text" rows="12" placeholder="DECIR;říkat
+DAR;dát
+IR;jít/jet" style="width:100%; padding:12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; resize:vertical; outline:none;"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Importovat</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

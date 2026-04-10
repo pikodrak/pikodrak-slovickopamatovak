@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% block title %}Procvičování — {{ ws.name }}{% endblock %}
+{% block nav_back %}
+<a href="{% if shared_token %}{{ url_for('shared_set', token=shared_token) }}{% else %}{{ url_for('view_set', set_id=ws.id) }}{% endif %}" class="nav-back">&#8249;</a>
+{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header" style="text-align:center;">
+        <h1>{{ ws.name }}</h1>
+    </div>
+
+    <!-- Direction picker -->
+    <div id="setup">
+        <div class="card">
+            <h2 style="margin-bottom: 16px; text-align: center;">Směr procvičování</h2>
+            <div class="direction-picker">
+                <button class="direction-btn active" data-dir="a-b" onclick="setDirection('a-b')">
+                    {{ ws.lang_a_name }} &rarr; {{ ws.lang_b_name }}
+                </button>
+                <button class="direction-btn" data-dir="b-a" onclick="setDirection('b-a')">
+                    {{ ws.lang_b_name }} &rarr; {{ ws.lang_a_name }}
+                </button>
+                <button class="direction-btn" data-dir="mix" onclick="setDirection('mix')">
+                    Mix
+                </button>
+            </div>
+            <button class="btn btn-primary btn-block btn-lg" onclick="startPractice()">
+                Začít procvičovat
+            </button>
+        </div>
+    </div>
+
+    <!-- Practice area -->
+    <div id="practiceArea" style="display:none;">
+        <div class="practice-header">
+            <div class="practice-progress">
+                <span id="progressText">1 / {{ words|length }}</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="flashcard-container">
+            <div class="flashcard" id="flashcard" onclick="flipCard()">
+                <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                        <div class="flashcard-lang" id="frontLang"></div>
+                        <div class="flashcard-word" id="frontWord"></div>
+                        <div class="flashcard-hint">klepněte pro zobrazení překladu</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-lang" id="backLang"></div>
+                        <div class="flashcard-word" id="backWord"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="practice-buttons" id="answerButtons" style="display:none;">
+            <button class="btn btn-danger" onclick="answer(false)">Nevěděl/a</button>
+            <button class="btn btn-success" onclick="answer(true)">Věděl/a</button>
+        </div>
+    </div>
+
+    <!-- Done screen -->
+    <div id="doneScreen" style="display:none;">
+        <div class="practice-done">
+            <h2 id="doneTitle">Výborně!</h2>
+            <div class="practice-stats">
+                <div class="stat">
+                    <div class="stat-number good" id="statCorrect">0</div>
+                    <div class="stat-label">Slovíček</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number bad" id="statRounds">0</div>
+                    <div class="stat-label">Kol</div>
+                </div>
+            </div>
+            <p id="doneMessage"></p>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="btn btn-primary btn-lg" onclick="restart()">Procvičovat znovu</button>
+                {% if shared_token %}
+                <a href="{{ url_for('shared_set', token=shared_token) }}" class="btn btn-outline btn-lg">Zpět na sadu</a>
+                {% else %}
+                <a href="{{ url_for('view_set', set_id=ws.id) }}" class="btn btn-outline btn-lg">Zpět na sadu</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ALL_WORDS = {{ words|tojson }};
+const LANG_A = {{ ws.lang_a_name|tojson }};
+const LANG_B = {{ ws.lang_b_name|tojson }};
+let direction = 'a-b';
+let queue = [];
+let currentIndex = 0;
+let totalInRound = 0;
+let wrongWords = [];
+let isFlipped = false;
+let roundNumber = 1;
+
+function setDirection(dir) {
+    direction = dir;
+    document.querySelectorAll('.direction-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.dir === dir);
+    });
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+function startPractice() {
+    queue = shuffle([...ALL_WORDS]);
+    totalInRound = queue.length;
+    currentIndex = 0;
+    wrongWords = [];
+    roundNumber = 1;
+
+    document.getElementById('setup').style.display = 'none';
+    document.getElementById('practiceArea').style.display = 'block';
+    document.getElementById('doneScreen').style.display = 'none';
+
+    showCard();
+}
+
+function getCardDirection(word) {
+    if (direction === 'a-b') return { front: word.word_a, back: word.word_b, frontLang: LANG_A, backLang: LANG_B };
+    if (direction === 'b-a') return { front: word.word_b, back: word.word_a, frontLang: LANG_B, backLang: LANG_A };
+    if (Math.random() < 0.5) return { front: word.word_a, back: word.word_b, frontLang: LANG_A, backLang: LANG_B };
+    return { front: word.word_b, back: word.word_a, frontLang: LANG_B, backLang: LANG_A };
+}
+
+function showCard() {
+    if (currentIndex >= queue.length) {
+        endRound();
+        return;
+    }
+
+    const word = queue[currentIndex];
+    const dir = getCardDirection(word);
+
+    document.getElementById('frontWord').textContent = dir.front;
+    document.getElementById('backWord').textContent = dir.back;
+    document.getElementById('frontLang').textContent = dir.frontLang;
+    document.getElementById('backLang').textContent = dir.backLang;
+
+    const card = document.getElementById('flashcard');
+    card.classList.remove('flipped');
+    isFlipped = false;
+    document.getElementById('answerButtons').style.display = 'none';
+
+    const progress = currentIndex / totalInRound * 100;
+    document.getElementById('progressFill').style.width = progress + '%';
+    document.getElementById('progressText').textContent =
+        (currentIndex + 1) + ' / ' + totalInRound +
+        (roundNumber > 1 ? '  (opakování č. ' + (roundNumber - 1) + ')' : '');
+}
+
+function flipCard() {
+    if (isFlipped) return;
+    isFlipped = true;
+    document.getElementById('flashcard').classList.add('flipped');
+    document.getElementById('answerButtons').style.display = 'flex';
+}
+
+function answer(correct) {
+    if (!correct) {
+        wrongWords.push(queue[currentIndex]);
+    }
+    currentIndex++;
+    showCard();
+}
+
+function endRound() {
+    if (wrongWords.length > 0) {
+        queue = shuffle([...wrongWords]);
+        totalInRound = queue.length;
+        currentIndex = 0;
+        wrongWords = [];
+        roundNumber++;
+        showCard();
+    } else {
+        showDone();
+    }
+}
+
+function showDone() {
+    document.getElementById('practiceArea').style.display = 'none';
+    document.getElementById('doneScreen').style.display = 'block';
+
+    document.getElementById('statCorrect').textContent = ALL_WORDS.length;
+    document.getElementById('statRounds').textContent = roundNumber;
+
+    if (roundNumber === 1) {
+        document.getElementById('doneTitle').textContent = 'Perfektní!';
+        document.getElementById('doneMessage').textContent = 'Všechna slovíčka na první pokus!';
+    } else {
+        document.getElementById('doneTitle').textContent = 'Hotovo!';
+        document.getElementById('doneMessage').textContent =
+            'Zvládli jste to po ' + roundNumber + ' kolech.';
+    }
+}
+
+function restart() {
+    document.getElementById('doneScreen').style.display = 'none';
+    document.getElementById('setup').style.display = 'block';
+}
+</script>
+{% endblock %}

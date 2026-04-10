@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}{{ ws.name }} — {{ APP_NAME }}{% endblock %}
+{% block nav_back %}<a href="{{ url_for('dashboard') }}" class="nav-back">&#8249;</a>{% endblock %}
+{% block body %}
+<div class="container">
+    <div class="page-header">
+        <div class="page-header-row">
+            <h1>{{ ws.name }}</h1>
+            <a href="{{ url_for('edit_set', set_id=ws.id) }}" class="btn btn-outline btn-sm">Upravit</a>
+        </div>
+        <div style="font-size:0.85rem; color:var(--text-light); margin-top:4px;">
+            {{ ws.lang_a_name }} &harr; {{ ws.lang_b_name }}
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    {% if ws.words %}
+    <div style="margin-bottom: 16px;">
+        <a href="{{ url_for('practice', set_id=ws.id) }}" class="btn btn-success btn-block btn-lg">
+            Procvičovat ({{ ws.words|length }} slovíček)
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Sharing -->
+    <div class="card" style="padding: 14px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div style="min-width:0; flex:1;">
+            {% if ws.share_token %}
+            <div style="font-size:0.8rem; color:var(--success); font-weight:600; margin-bottom:4px;">Sdílení zapnuto</div>
+            <input type="text" value="{{ url_for('shared_set', token=ws.share_token, _external=True) }}"
+                   readonly onclick="this.select()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; font-size:0.8rem;">
+            {% else %}
+            <div style="font-size:0.85rem; color:var(--text-light);">Sdílení je vypnuté</div>
+            {% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('toggle_share', set_id=ws.id) }}">
+            <button type="submit" class="btn btn-sm {{ 'btn-outline' if ws.share_token else 'btn-secondary' }}">
+                {{ 'Vypnout' if ws.share_token else 'Sdílet' }}
+            </button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="section-header">
+            <h2>Slovíčka</h2>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <a href="{{ url_for('import_words', set_id=ws.id) }}" class="btn btn-outline btn-sm">Import</a>
+                <span style="color:var(--text-light); font-size:0.85rem;">{{ ws.words|length }}</span>
+            </div>
+        </div>
+
+        {% for word in ws.words %}
+        <div class="word-row" id="word-{{ word.id }}">
+            <div class="word-texts">
+                <span class="word-czech">{{ word.word_a }}</span>
+                <span class="word-sep">=</span>
+                <span class="word-spanish">{{ word.word_b }}</span>
+            </div>
+            <div class="word-actions">
+                <button class="btn-icon" onclick="openEditModal({{ word.id }}, '{{ word.word_a|e }}', '{{ word.word_b|e }}')" title="Upravit">&#9998;</button>
+                <form method="POST" action="{{ url_for('delete_word', word_id=word.id) }}" style="display:inline"
+                      onsubmit="return confirm('Smazat slovíčko?')">
+                    <button type="submit" title="Smazat">&#10005;</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+
+        <form class="add-word-form" method="POST" action="{{ url_for('add_word', set_id=ws.id) }}">
+            <input type="text" name="word_a" placeholder="{{ ws.lang_a_name }}" required>
+            <input type="text" name="word_b" placeholder="{{ ws.lang_b_name }}" required>
+            <button type="submit" class="btn btn-primary btn-sm">+</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <form method="POST" action="{{ url_for('delete_set', set_id=ws.id) }}"
+              onsubmit="return confirm('Opravdu smazat celou sadu?')">
+            <button type="submit" class="btn btn-danger btn-block btn-sm">Smazat sadu</button>
+        </form>
+    </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <h3>Upravit slovíčko</h3>
+        <form method="POST" id="editForm">
+            <div class="form-group">
+                <label>{{ ws.lang_a_name }}</label>
+                <input type="text" name="word_a" id="editWordA" required>
+            </div>
+            <div class="form-group">
+                <label>{{ ws.lang_b_name }}</label>
+                <input type="text" name="word_b" id="editWordB" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeEditModal()">Zrušit</button>
+                <button type="submit" class="btn btn-primary btn-sm">Uložit</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openEditModal(wordId, wordA, wordB) {
+    document.getElementById('editForm').action = '/word/' + wordId + '/edit';
+    document.getElementById('editWordA').value = wordA;
+    document.getElementById('editWordB').value = wordB;
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+}
+
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+</script>
+{% endblock %}
