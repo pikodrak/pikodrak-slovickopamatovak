@@ -58,13 +58,12 @@ function dbClear(db, store) {
     });
 }
 
-// === Sync badge ===
+// === Sync status ===
 function setSyncStatus(status, text) {
     var badge = document.getElementById('syncBadge');
-    if (!badge) return;
-    badge.className = 'sync-badge ' + status;
-    badge.textContent = text;
-    badge.title = text;
+    if (badge) badge.textContent = text;
+    var dot = document.getElementById('syncDot');
+    if (dot) dot.className = 'sync-dot ' + status;
 }
 
 // === Sync: download all data for offline use ===

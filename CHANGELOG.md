@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-04-10
+
+### Změněno
+- Sync stav přesunut do dropdown menu pod username (barevná tečka u jména)
+- AI vysvětlení slovíček se cachuje v databázi — při opakovaném dotazu se nenačítá z AI
+
 ## 0.6.1 — 2026-04-10
 
 ### Opraveno

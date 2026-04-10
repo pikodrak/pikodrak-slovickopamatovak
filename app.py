@@ -92,6 +92,15 @@ class PracticeResult(db.Model):
     word = db.relationship('Word', backref=db.backref('results', lazy=True, cascade='all, delete-orphan'))
 
 
+class WordExplanation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(300), nullable=False)
+    lang = db.Column(db.String(100), nullable=False)
+    explanation = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('word', 'lang', name='uq_word_lang'),)
+
+
 class ApiToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
@@ -930,13 +939,19 @@ def ai_hint():
 
 @app.route('/ai/explain', methods=['POST'])
 def ai_explain():
-    if not OPENAI_API_KEY:
-        return jsonify({'error': 'AI není dostupné'}), 400
     data = request.get_json(silent=True) or {}
     word = data.get('word', '').strip()
     lang = data.get('lang', '')
     if not word or not lang:
         return jsonify({'error': 'missing fields'}), 400
+
+    # Check cache first
+    cached = WordExplanation.query.filter_by(word=word, lang=lang).first()
+    if cached:
+        return jsonify({'explanation': cached.explanation, 'cached': True})
+
+    if not OPENAI_API_KEY:
+        return jsonify({'error': 'AI není dostupné'}), 400
 
     system_prompt = (
         f"You are a language teacher. A student is learning {lang}. "
@@ -948,7 +963,12 @@ def ai_explain():
     )
     try:
         result = openai_chat(system_prompt, word)
-        return jsonify({'explanation': result.strip()})
+        explanation = result.strip()
+        # Save to cache
+        entry = WordExplanation(word=word, lang=lang, explanation=explanation)
+        db.session.add(entry)
+        db.session.commit()
+        return jsonify({'explanation': explanation, 'cached': False})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
