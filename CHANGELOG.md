@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.1 — 2026-04-10
+
+### Změněno
+- TTS výslovnost jen u cizího jazyka (word_b), české tlačítko odebráno
+- Opakování: přidány rozsahy po 10 (stejně jako u slovníků)
+
 ## 0.8.0 — 2026-04-10
 
 ### Přidáno

@@ -36,8 +36,19 @@
     {% if words %}
     <div style="margin-bottom: 16px;">
         <a href="{{ url_for('practice_difficult') }}" class="btn btn-success btn-block btn-lg">
-            Procvičovat k opakování ({{ words|length }})
+            Procvičovat vše ({{ words|length }})
         </a>
+        {% if words|length > 10 %}
+        <div class="practice-ranges">
+            {% set chunk = 10 %}
+            {% for start in range(1, words|length + 1, chunk) %}
+            {% set end = [start + chunk - 1, words|length]|min %}
+            <a href="{{ url_for('practice_difficult', **{'from': start, 'to': end}) }}" class="btn btn-outline btn-sm practice-range-btn">
+                {{ start }}–{{ end }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     <div class="card">

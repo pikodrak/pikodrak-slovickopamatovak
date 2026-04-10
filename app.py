@@ -758,8 +758,19 @@ def practice_difficult():
     if not rows:
         flash('Zatím nemáte žádná slovíčka k opakování.', 'error')
         return redirect(url_for('difficult_words'))
-    words = [{'id': r.id, 'word_a': r.word_a, 'word_b': r.word_b} for r in rows]
-    # Build a fake WordSet-like object for the template
+    all_words = [{'id': r.id, 'word_a': r.word_a, 'word_b': r.word_b} for r in rows]
+    # Optional range
+    wfrom = request.args.get('from', type=int)
+    wto = request.args.get('to', type=int)
+    if wfrom is not None and wto is not None:
+        words = all_words[wfrom-1:wto]
+        range_label = f'{wfrom}–{wto}'
+    else:
+        words = all_words
+        range_label = None
+    if not words:
+        flash('Žádná slovíčka v tomto rozsahu.', 'error')
+        return redirect(url_for('difficult_words'))
     lang_a = rows[0].lang_a
     lang_b = rows[0].lang_b
     ws_data = type('WS', (), {
@@ -769,7 +780,7 @@ def practice_difficult():
         'lang_b_name': LANG_MAP.get(lang_b, lang_b),
         'share_token': None,
     })()
-    return render_template('practice.html', ws=ws_data, words=words, shared_token=None, is_difficult=True)
+    return render_template('practice.html', ws=ws_data, words=words, shared_token=None, is_difficult=True, range_label=range_label)
 
 
 # --- Changelog ---

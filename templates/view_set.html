@@ -73,11 +73,10 @@
         {% for word in ws.words %}
         <div class="word-row" id="word-{{ word.id }}">
             <div class="word-texts">
-                <button class="btn-speak" onclick="speak('{{ word.word_a|e }}', '{{ ws.lang_a }}')" title="Přečíst">&#128264;</button>
                 <span class="word-czech">{{ word.word_a }}</span>
                 <span class="word-sep">=</span>
-                <button class="btn-speak" onclick="speak('{{ word.word_b|e }}', '{{ ws.lang_b }}')" title="Přečíst">&#128264;</button>
                 <span class="word-spanish">{{ word.word_b }}</span>
+                <button class="btn-speak" onclick="speak('{{ word.word_b|e }}', '{{ ws.lang_b }}')" title="Přečíst">&#128264;</button>
                 {% if word.id in word_stats %}
                 {% set st = word_stats[word.id] %}
                 <span class="word-stat {% if st.pct >= 50 %}stat-bad{% elif st.pct > 0 %}stat-med{% else %}stat-ok{% endif %}" title="{{ st.wrong }}/{{ st.total }} špatně">
