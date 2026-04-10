@@ -132,6 +132,7 @@ function escHtml(s) {
     return d.innerHTML;
 }
 
-loadOfflineSets();
+// Wait for defer scripts (offline.js) to load
+window.addEventListener('load', loadOfflineSets);
 </script>
 {% endblock %}
