@@ -40,6 +40,9 @@
 <div class="container">
     <div class="page-header" style="text-align:center;">
         <h1>{{ ws.name }}</h1>
+        {% if range_label is defined and range_label %}
+        <div style="font-size:0.85rem; color:var(--text-light); margin-top:2px;">slovíčka {{ range_label }}</div>
+        {% endif %}
     </div>
 
     <!-- Setup -->

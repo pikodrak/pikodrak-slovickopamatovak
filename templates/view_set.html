@@ -22,8 +22,20 @@
     {% if ws.words %}
     <div style="margin-bottom: 16px;">
         <a href="{{ url_for('practice', set_id=ws.id) }}" class="btn btn-success btn-block btn-lg">
-            Procvičovat ({{ ws.words|length }} slovíček)
+            Procvičovat vše ({{ ws.words|length }})
         </a>
+        {% set total = ws.words|length %}
+        {% set chunk = 10 %}
+        {% if total > chunk %}
+        <div class="practice-ranges">
+            {% for start in range(1, total + 1, chunk) %}
+            {% set end = [start + chunk - 1, total]|min %}
+            <a href="{{ url_for('practice', set_id=ws.id, **{'from': start, 'to': end}) }}" class="btn btn-outline btn-sm practice-range-btn">
+                {{ start }}–{{ end }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 

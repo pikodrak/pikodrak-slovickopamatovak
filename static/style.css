@@ -691,6 +691,17 @@ body {
     margin-top: 16px;
 }
 
+.practice-ranges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.practice-range-btn {
+    min-width: 70px;
+}
+
 .practice-buttons {
     display: flex;
     gap: 12px;

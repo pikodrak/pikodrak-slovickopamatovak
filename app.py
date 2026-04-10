@@ -682,8 +682,20 @@ def practice(set_id):
     if not ws.words:
         flash('Sada neobsahuje žádná slovíčka.', 'error')
         return redirect(url_for('view_set', set_id=set_id))
-    words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
-    return render_template('practice.html', ws=ws, words=words, shared_token=None)
+    all_words = [{'id': w.id, 'word_a': w.word_a, 'word_b': w.word_b} for w in ws.words]
+    # Optional range filter
+    wfrom = request.args.get('from', type=int)
+    wto = request.args.get('to', type=int)
+    if wfrom is not None and wto is not None:
+        words = all_words[wfrom-1:wto]
+        range_label = f'{wfrom}–{wto}'
+    else:
+        words = all_words
+        range_label = None
+    if not words:
+        flash('Žádná slovíčka v tomto rozsahu.', 'error')
+        return redirect(url_for('view_set', set_id=set_id))
+    return render_template('practice.html', ws=ws, words=words, shared_token=None, range_label=range_label)
 
 
 # --- Practice stats ---

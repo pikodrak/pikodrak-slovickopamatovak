@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — 2026-04-10
+
+### Přidáno
+- Procvičování po úsecích — na stránce slovníku tlačítka 1–10, 11–20, atd.
+  - Velké tlačítko "Procvičovat vše" zůstává nahoře
+  - Pod ním řada menších tlačítek pro jednotlivé rozsahy po 10 slovíčkách
+  - V procvičování se zobrazí rozsah v titulku
+
 ## 0.6.3 — 2026-04-10
 
 ### Opraveno
