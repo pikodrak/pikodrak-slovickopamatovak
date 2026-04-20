@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.8.5 — 2026-04-20
+
+### Opraveno
+- Kartičky: opraveno probliknutí odpovědi při přechodu na další slovíčko
+- Kartičky: kliknutí na otočenou kartičku ji otočí zpět (toggle)
+- Kartičky: opraveno auto-speak při otočení (nefunkovalo kvůli chybějící funkci)
+
+### Přidáno
+- Kartičky: tlačítko vysvětlení slovíčka (💡) na přední i zadní straně
+- Offline: kompletně přepracované procvičování
+  - Volba směru procvičování (A→B, B→A, Mix)
+  - Kartičky s flip animací (stejné jako online)
+  - Progress bar s počítadlem
+  - Procvičování po úsecích po 10 slovíčkách
+  - Tlačítko "10 náhodných"
+  - Tlačítko "Ukončit" s uložením výsledků
+  - Obrazovka s výsledky (počet kol, slovíček)
+
+### Změněno
+- TTS: odebrán reproduktor u českých slov (ve slovníku i při procvičování)
+
+## 0.8.4 — 2026-04-11
+
+### Opraveno
+- Import slovíček: opraven příklad pořadí jazyků (čeština;španělština, ne naopak)
+- Import slovíček: přidán popis formátu nad textové pole
+
 ## 0.8.3 — 2026-04-10
 
 ### Opraveno

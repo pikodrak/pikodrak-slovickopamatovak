@@ -12,127 +12,309 @@
 {% endblock %}
 {% block body %}
 <div class="container">
-    <div id="offlineMsg" style="text-align:center; padding-top:40px;">
-        <div style="font-size:2.5rem; margin-bottom:12px;">&#128268;</div>
-        <h2 style="margin-bottom:8px;">Jste offline</h2>
-        <p style="color:var(--text-light); margin-bottom:24px;">Ale můžete procvičovat slovíčka ze stažených slovníků.</p>
+    <!-- Set list -->
+    <div id="offlineMsg">
+        <div class="page-header" style="text-align:center;">
+            <h1>Offline procvičování</h1>
+            <div style="font-size:0.85rem; color:var(--text-light); margin-top:4px;">Slovíčka ze stažených slovníků</div>
+        </div>
         <div id="offlineSets"></div>
-        <p id="noData" style="display:none; color:var(--text-light); font-size:0.9rem; margin-top:20px;">
+        <p id="noData" style="display:none; color:var(--text-light); font-size:0.9rem; margin-top:20px; text-align:center;">
             Žádná data nejsou uložena. Přihlaste se online, aby se slovíčka stáhla.
         </p>
+    </div>
+
+    <!-- Setup (direction picker) -->
+    <div id="offSetup" style="display:none;">
+        <div class="page-header" style="text-align:center;">
+            <h1 id="offSetupTitle"></h1>
+            <div id="offSetupRange" style="font-size:0.85rem; color:var(--text-light); margin-top:2px;"></div>
+        </div>
+        <div class="card">
+            <h2 style="margin-bottom:16px; text-align:center;">Směr procvičování</h2>
+            <div class="direction-picker">
+                <button class="direction-btn active" data-dir="a-b" onclick="setOffDir('a-b')"></button>
+                <button class="direction-btn" data-dir="b-a" onclick="setOffDir('b-a')"></button>
+                <button class="direction-btn" data-dir="mix" onclick="setOffDir('mix')">Mix</button>
+            </div>
+            <button class="btn btn-primary btn-block btn-lg" onclick="startOffPractice()">Začít procvičovat</button>
+        </div>
+        <button class="btn btn-outline btn-block" onclick="backToSets()" style="margin-top:12px;">Zpět na slovníky</button>
+    </div>
+
+    <!-- Practice -->
+    <div id="offPractice" style="display:none;">
+        <div class="practice-header">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="practice-progress" style="flex:1;">
+                    <span id="offProgressText"></span>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="endOffEarly()" style="font-size:0.8rem;">Ukončit</button>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="offProgressFill" style="width:0%"></div>
+            </div>
+        </div>
+
+        <div class="flashcard-container">
+            <div class="flashcard" id="offFlashcard" onclick="flipOffCard()">
+                <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                        <div class="flashcard-lang" id="offFrontLang"></div>
+                        <div class="flashcard-word" id="offFrontWord"></div>
+                        <div class="flashcard-hint">klepněte pro zobrazení překladu</div>
+                    </div>
+                    <div class="flashcard-back">
+                        <div class="flashcard-lang" id="offBackLang"></div>
+                        <div class="flashcard-word" id="offBackWord"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="practice-buttons" id="offButtons" style="display:none;">
+            <button class="btn btn-danger" onclick="offAnswer(false)">Nevěděl/a</button>
+            <button class="btn btn-success" onclick="offAnswer(true)">Věděl/a</button>
+        </div>
+    </div>
+
+    <!-- Done -->
+    <div id="offDone" style="display:none;">
+        <div class="practice-done">
+            <h2 id="offDoneTitle"></h2>
+            <div class="practice-stats">
+                <div class="stat">
+                    <div class="stat-number good" id="offStatWords">0</div>
+                    <div class="stat-label">Slovíček</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-number bad" id="offStatRounds">0</div>
+                    <div class="stat-label">Kol</div>
+                </div>
+            </div>
+            <p id="offDoneMsg"></p>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="btn btn-primary btn-lg" onclick="restartOffPractice()">Procvičovat znovu</button>
+                <button class="btn btn-outline btn-lg" onclick="backToSets()">Zpět na slovníky</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+var offCurrentSet = null;
+var offDirection = 'a-b';
+var offQueue = [];
+var offIdx = 0;
+var offWrong = [];
+var offRound = 1;
+var offTotalInRound = 0;
+var offIsFlipped = false;
+var offAllWords = [];
+
+function offShuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+}
+
+// --- Set list ---
 async function loadOfflineSets() {
     if (typeof getOfflineSets !== 'function') {
         document.getElementById('noData').style.display = 'block';
         return;
     }
-    const sets = await getOfflineSets();
-    const container = document.getElementById('offlineSets');
+    var sets = await getOfflineSets();
+    var container = document.getElementById('offlineSets');
     if (!sets || sets.length === 0) {
         document.getElementById('noData').style.display = 'block';
         return;
     }
-    sets.forEach(s => {
+    sets.forEach(function(s) {
         if (!s.words || s.words.length === 0) return;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-primary btn-block btn-lg';
-        btn.style.marginBottom = '12px';
-        btn.textContent = s.name + ' (' + s.words.length + ')';
-        btn.onclick = function() { startOfflinePractice(s); };
-        container.appendChild(btn);
+        var setDiv = document.createElement('div');
+        setDiv.style.marginBottom = '16px';
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-success btn-block btn-lg';
+        btn.textContent = s.name + ' — Procvičovat vše (' + s.words.length + ')';
+        btn.onclick = function() { selectOffSet(s, s.words, null); };
+        setDiv.appendChild(btn);
+        if (s.words.length > 10) {
+            var rangesDiv = document.createElement('div');
+            rangesDiv.className = 'practice-ranges';
+            rangesDiv.style.marginTop = '10px';
+            // Random 10
+            var randBtn = document.createElement('button');
+            randBtn.className = 'btn btn-secondary btn-sm practice-range-btn';
+            randBtn.textContent = '10 náhodných';
+            randBtn.onclick = function() {
+                var shuffled = offShuffle([].concat(s.words));
+                selectOffSet(s, shuffled.slice(0, 10), '10 náhodných');
+            };
+            rangesDiv.appendChild(randBtn);
+            for (var start = 0; start < s.words.length; start += 10) {
+                var end = Math.min(start + 10, s.words.length);
+                (function(from, to) {
+                    var rangeBtn = document.createElement('button');
+                    rangeBtn.className = 'btn btn-outline btn-sm practice-range-btn';
+                    rangeBtn.textContent = (from + 1) + '\u2013' + to;
+                    rangeBtn.onclick = function() {
+                        selectOffSet(s, s.words.slice(from, to), (from + 1) + '\u2013' + to);
+                    };
+                    rangesDiv.appendChild(rangeBtn);
+                })(start, end);
+            }
+            setDiv.appendChild(rangesDiv);
+        }
+        container.appendChild(setDiv);
     });
 }
 
-function startOfflinePractice(setData) {
+function selectOffSet(setData, words, rangeLabel) {
+    offCurrentSet = setData;
+    offAllWords = [].concat(words);
     document.getElementById('offlineMsg').style.display = 'none';
-    var area = document.createElement('div');
-    area.id = 'offPractice';
-    document.querySelector('.container').appendChild(area);
-
-    var words = [...setData.words];
-    // Shuffle
-    for (var i = words.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var t = words[i]; words[i] = words[j]; words[j] = t;
-    }
-
-    var idx = 0, wrong = [], round = 1;
+    document.getElementById('offSetup').style.display = 'block';
+    document.getElementById('offSetupTitle').textContent = setData.name;
+    document.getElementById('offSetupRange').textContent = rangeLabel
+        ? 'slovíčka ' + rangeLabel
+        : offAllWords.length + ' slovíček';
+    // Direction button labels
     var langA = setData.lang_a_name || 'A';
     var langB = setData.lang_b_name || 'B';
+    var dirBtns = document.querySelectorAll('#offSetup .direction-btn');
+    dirBtns[0].textContent = langA + ' \u2192 ' + langB;
+    dirBtns[1].textContent = langB + ' \u2192 ' + langA;
+    // Reset direction
+    offDirection = 'a-b';
+    dirBtns.forEach(function(b) { b.classList.toggle('active', b.dataset.dir === 'a-b'); });
+}
 
-    function show() {
-        if (idx >= words.length) {
-            if (wrong.length > 0) {
-                words = [...wrong];
-                for (var i = words.length - 1; i > 0; i--) {
-                    var j = Math.floor(Math.random() * (i + 1));
-                    var t = words[i]; words[i] = words[j]; words[j] = t;
-                }
-                idx = 0; wrong = []; round++;
-                show();
-                return;
-            }
-            area.innerHTML =
-                '<div style="text-align:center; padding:40px 0;">' +
-                '<h2>Hotovo!</h2>' +
-                '<p style="color:var(--text-light);">' + (round === 1 ? 'Vše na první pokus!' : 'Zvládnuto po ' + round + ' kolech.') + '</p>' +
-                '<button class="btn btn-primary btn-lg" onclick="location.reload()">Zpět</button>' +
-                '</div>';
-            return;
-        }
-        var w = words[idx];
-        area.innerHTML =
-            '<div style="text-align:center; margin-bottom:12px; font-size:0.8rem; color:var(--text-light);">' +
-            (idx+1) + ' / ' + words.length + (round > 1 ? '  (opakování č.' + (round-1) + ')' : '') +
-            '</div>' +
-            '<div class="card" style="text-align:center; padding:30px 20px; min-height:180px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;" id="offCard">' +
-            '<div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-light); letter-spacing:1px; margin-bottom:8px;">' + langA + '</div>' +
-            '<div style="font-size:1.8rem; font-weight:700;">' + escHtml(w.word_a) + '</div>' +
-            '<div id="offAnswer" style="display:none; margin-top:16px;">' +
-            '<div style="font-size:0.75rem; text-transform:uppercase; color:var(--text-light); letter-spacing:1px; margin-bottom:8px;">' + langB + '</div>' +
-            '<div style="font-size:1.5rem; font-weight:600; color:var(--primary);">' + escHtml(w.word_b) + '</div>' +
-            '</div>' +
-            '<div id="offHint" style="font-size:0.8rem; color:var(--text-light); margin-top:12px;">klepněte pro zobrazení</div>' +
-            '</div>' +
-            '<div id="offButtons" style="display:none; display:flex; gap:12px; margin-top:16px;">' +
-            '<button class="btn btn-danger" style="flex:1; padding:16px;" id="offWrong">Nevěděl/a</button>' +
-            '<button class="btn btn-success" style="flex:1; padding:16px;" id="offRight">Věděl/a</button>' +
-            '</div>';
+function setOffDir(dir) {
+    offDirection = dir;
+    document.querySelectorAll('#offSetup .direction-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.dir === dir);
+    });
+}
 
-        var revealed = false;
-        document.getElementById('offButtons').style.display = 'none';
-        document.getElementById('offCard').onclick = function() {
-            if (revealed) return;
-            revealed = true;
-            document.getElementById('offAnswer').style.display = 'block';
-            document.getElementById('offHint').style.display = 'none';
-            document.getElementById('offButtons').style.display = 'flex';
-        };
-        document.getElementById('offRight').onclick = function() {
-            if (typeof queuePracticeResult === 'function') queuePracticeResult(w.id, true);
-            idx++; show();
-        };
-        document.getElementById('offWrong').onclick = function() {
-            if (typeof queuePracticeResult === 'function') queuePracticeResult(w.id, false);
-            wrong.push(w); idx++; show();
-        };
+function backToSets() {
+    document.getElementById('offSetup').style.display = 'none';
+    document.getElementById('offPractice').style.display = 'none';
+    document.getElementById('offDone').style.display = 'none';
+    document.getElementById('offlineMsg').style.display = 'block';
+}
+
+// --- Practice ---
+function getOffCardDir(word) {
+    var langA = offCurrentSet.lang_a_name || 'A';
+    var langB = offCurrentSet.lang_b_name || 'B';
+    if (offDirection === 'a-b') return {front: word.word_a, back: word.word_b, frontLang: langA, backLang: langB};
+    if (offDirection === 'b-a') return {front: word.word_b, back: word.word_a, frontLang: langB, backLang: langA};
+    if (Math.random() < 0.5) return {front: word.word_a, back: word.word_b, frontLang: langA, backLang: langB};
+    return {front: word.word_b, back: word.word_a, frontLang: langB, backLang: langA};
+}
+
+function startOffPractice() {
+    offQueue = offShuffle([].concat(offAllWords));
+    offTotalInRound = offQueue.length;
+    offIdx = 0;
+    offWrong = [];
+    offRound = 1;
+    document.getElementById('offSetup').style.display = 'none';
+    document.getElementById('offPractice').style.display = 'block';
+    document.getElementById('offDone').style.display = 'none';
+    showOffCard();
+}
+
+function showOffCard() {
+    if (offIdx >= offQueue.length) { endOffRound(); return; }
+    var word = offQueue[offIdx];
+    var dir = getOffCardDir(word);
+
+    // Progress
+    var pct = offIdx / offTotalInRound * 100;
+    document.getElementById('offProgressFill').style.width = pct + '%';
+    document.getElementById('offProgressText').textContent =
+        (offIdx + 1) + ' / ' + offTotalInRound +
+        (offRound > 1 ? '  (opakování č. ' + (offRound - 1) + ')' : '');
+
+    // Reset card without animation
+    var inner = document.querySelector('#offFlashcard .flashcard-inner');
+    inner.style.transition = 'none';
+    document.getElementById('offFlashcard').classList.remove('flipped');
+    inner.offsetHeight;
+    inner.style.transition = '';
+
+    document.getElementById('offFrontLang').textContent = dir.frontLang;
+    document.getElementById('offFrontWord').textContent = dir.front;
+    document.getElementById('offBackLang').textContent = dir.backLang;
+    document.getElementById('offBackWord').textContent = dir.back;
+    offIsFlipped = false;
+    document.getElementById('offButtons').style.display = 'none';
+}
+
+function flipOffCard() {
+    if (offIsFlipped) {
+        offIsFlipped = false;
+        document.getElementById('offFlashcard').classList.remove('flipped');
+    } else {
+        offIsFlipped = true;
+        document.getElementById('offFlashcard').classList.add('flipped');
+        document.getElementById('offButtons').style.display = 'flex';
     }
-
-    show();
 }
 
-function escHtml(s) {
-    var d = document.createElement('div');
-    d.textContent = s;
-    return d.innerHTML;
+function offAnswer(correct) {
+    if (typeof queuePracticeResult === 'function') queuePracticeResult(offQueue[offIdx].id, correct);
+    if (!correct) offWrong.push(offQueue[offIdx]);
+    offIdx++;
+    showOffCard();
 }
 
-// Wait for defer scripts (offline.js) to load
+function endOffEarly() {
+    if (!confirm('Ukončit procvičování? Neprobrané slovíčka se uloží jako špatné.')) return;
+    for (var i = offIdx; i < offQueue.length; i++) {
+        if (typeof queuePracticeResult === 'function') queuePracticeResult(offQueue[i].id, false);
+    }
+    showOffDone();
+}
+
+function endOffRound() {
+    if (offWrong.length > 0) {
+        offQueue = offShuffle([].concat(offWrong));
+        offTotalInRound = offQueue.length;
+        offIdx = 0;
+        offWrong = [];
+        offRound++;
+        showOffCard();
+    } else {
+        showOffDone();
+    }
+}
+
+function showOffDone() {
+    document.getElementById('offPractice').style.display = 'none';
+    document.getElementById('offDone').style.display = 'block';
+    document.getElementById('offStatWords').textContent = offAllWords.length;
+    document.getElementById('offStatRounds').textContent = offRound;
+    if (offRound === 1) {
+        document.getElementById('offDoneTitle').textContent = 'Perfektní!';
+        document.getElementById('offDoneMsg').textContent = 'Všechna slovíčka na první pokus!';
+    } else {
+        document.getElementById('offDoneTitle').textContent = 'Hotovo!';
+        document.getElementById('offDoneMsg').textContent = 'Zvládli jste to po ' + offRound + ' kolech.';
+    }
+}
+
+function restartOffPractice() {
+    document.getElementById('offDone').style.display = 'none';
+    document.getElementById('offSetup').style.display = 'block';
+}
+
 window.addEventListener('load', loadOfflineSets);
 </script>
 {% endblock %}

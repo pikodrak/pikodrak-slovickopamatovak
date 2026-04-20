@@ -76,7 +76,7 @@
                 <span class="word-czech">{{ word.word_a }}</span>
                 <span class="word-sep">=</span>
                 <span class="word-spanish">{{ word.word_b }}</span>
-                <button class="btn-speak" onclick="speak('{{ word.word_b|e }}', '{{ ws.lang_b }}')" title="Přečíst">&#128264;</button>
+                {% if ws.lang_b != 'cs' %}<button class="btn-speak" onclick="speak('{{ word.word_b|e }}', '{{ ws.lang_b }}')" title="Přečíst">&#128264;</button>{% endif %}
                 {% if word.id in word_stats %}
                 {% set st = word_stats[word.id] %}
                 <span class="word-stat {% if st.pct >= 50 %}stat-bad{% elif st.pct > 0 %}stat-med{% else %}stat-ok{% endif %}" title="{{ st.wrong }}/{{ st.total }} špatně">

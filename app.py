@@ -991,6 +991,10 @@ def ai_explain():
         f"   - First the PRESENT tense (yo, tú, él/ella, nosotros, vosotros, ellos/ellas)\n"
         f"   - Then PAST tenses (pretérito, imperfecto) in the same format\n"
         f"   - Mark irregular forms with *\n"
+        f"5. At the end, ALWAYS add a section 'Podobná slova':\n"
+        f"   - List 3-5 similar or easily confused words in {lang}\n"
+        f"   - For each, briefly explain the difference in meaning vs. the original word\n"
+        f"   - Format: word — meaning, how it differs\n"
         f"Keep it concise but thorough. Answer in Czech (examples and conjugation in {lang})."
     )
     try:

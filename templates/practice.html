@@ -98,13 +98,19 @@
                         <div class="flashcard-front">
                             <div class="flashcard-lang" id="frontLang"></div>
                             <div class="flashcard-word" id="frontWord"></div>
-                            <button class="btn-speak" onclick="event.stopPropagation(); speakCurrent('front')" style="margin-top:8px; font-size:1.2rem; opacity:0.5;">&#128264;</button>
+                            <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+                                <button class="btn-speak" id="frontSpeakBtn" onclick="event.stopPropagation(); speakCurrent('front')" style="font-size:1.2rem; opacity:0.5;">&#128264;</button>
+                                {% if AI_ENABLED %}<button class="btn-icon" id="frontExplainBtn" onclick="event.stopPropagation(); explainCurrent('front')" style="font-size:1.2rem; opacity:0.5; background:none; border:none; cursor:pointer;" title="Vysvětlit">&#128161;</button>{% endif %}
+                            </div>
                             <div class="flashcard-hint">klepněte pro zobrazení překladu</div>
                         </div>
                         <div class="flashcard-back">
                             <div class="flashcard-lang" id="backLang"></div>
                             <div class="flashcard-word" id="backWord"></div>
-                            <button class="btn-speak" onclick="event.stopPropagation(); speakCurrent('back')" style="margin-top:8px; font-size:1.2rem; opacity:0.5;">&#128264;</button>
+                            <div style="margin-top:8px; display:flex; gap:12px; align-items:center;">
+                                <button class="btn-speak" id="backSpeakBtn" onclick="event.stopPropagation(); speakCurrent('back')" style="font-size:1.2rem; opacity:0.5;">&#128264;</button>
+                                {% if AI_ENABLED %}<button class="btn-icon" id="backExplainBtn" onclick="event.stopPropagation(); explainCurrent('back')" style="font-size:1.2rem; opacity:0.5; background:none; border:none; cursor:pointer;" title="Vysvětlit">&#128161;</button>{% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -167,6 +173,18 @@
         </div>
     </div>
 </div>
+
+{% if AI_ENABLED %}
+<div class="modal-overlay" id="explainModal">
+    <div class="modal" style="max-height:80vh; overflow-y:auto;">
+        <h3 id="explainTitle" style="margin-bottom:12px;"></h3>
+        <div id="explainContent" style="font-size:0.9rem; line-height:1.7; white-space:pre-wrap;"></div>
+        <div class="modal-actions" style="margin-top:16px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="closeExplainModal()">Zavřít</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -239,11 +257,15 @@ function showCard() {
         (roundNumber > 1 ? '  (opakování č. ' + (roundNumber - 1) + ')' : '');
 
     if (mode === 'flip') {
+        var inner = document.querySelector('.flashcard-inner');
+        inner.style.transition = 'none';
+        document.getElementById('flashcard').classList.remove('flipped');
+        inner.offsetHeight;
+        inner.style.transition = '';
         document.getElementById('frontWord').textContent = dir.front;
         document.getElementById('backWord').textContent = dir.back;
         document.getElementById('frontLang').textContent = dir.frontLang;
         document.getElementById('backLang').textContent = dir.backLang;
-        document.getElementById('flashcard').classList.remove('flipped');
         isFlipped = false;
         document.getElementById('answerButtons').style.display = 'none';
     } else {
@@ -282,15 +304,14 @@ function logResult(wordId, correct) {
 
 // --- FLIP mode ---
 function flipCard() {
-    if (isFlipped || mode !== 'flip') return;
-    isFlipped = true;
-    document.getElementById('flashcard').classList.add('flipped');
-    document.getElementById('answerButtons').style.display = 'flex';
-    // Auto-speak foreign word on back
-    var backText = document.getElementById('backWord').textContent;
-    var backIsB = document.getElementById('backLang').textContent === LANG_B;
-    if (backIsB) {
-        autoSpeakWord(backText, currentBackLangCode);
+    if (mode !== 'flip') return;
+    if (isFlipped) {
+        isFlipped = false;
+        document.getElementById('flashcard').classList.remove('flipped');
+    } else {
+        isFlipped = true;
+        document.getElementById('flashcard').classList.add('flipped');
+        document.getElementById('answerButtons').style.display = 'flex';
     }
 }
 
@@ -442,6 +463,7 @@ var LANG_A_CODE = {{ ws.lang_a|tojson }};
 var LANG_B_CODE = {{ ws.lang_b|tojson }};
 
 function playTTS(text, langCode) {
+    if (langCode === 'cs') return;
     if (currentAudio) { currentAudio.pause(); currentAudio = null; }
     currentAudio = new Audio('/tts/' + langCode + '/' + encodeURIComponent(text));
     currentAudio.play().catch(function(){});
@@ -462,25 +484,26 @@ function speakCurrent(side) {
     playTTS(text, lang);
 }
 
-// Wrap showCard to set lang codes and auto-speak
+// Wrap showCard to set lang codes, hide Czech speak, and auto-speak
 var origShowCard = showCard;
 showCard = function() {
-    if (currentIndex < queue.length) {
-        var dir = getCardDirection(queue[currentIndex]);
-        if (dir.frontLang === LANG_A) {
-            currentFrontLangCode = LANG_A_CODE;
-            currentBackLangCode = LANG_B_CODE;
-        } else {
-            currentFrontLangCode = LANG_B_CODE;
-            currentBackLangCode = LANG_A_CODE;
-        }
-    }
     origShowCard();
-    // Auto-speak foreign word when it's on the front
-    if (autoSpeak && currentIndex < queue.length && mode === 'flip') {
-        var d = getCardDirection(queue[currentIndex]);
-        if (d.frontLang === LANG_B) {
-            playTTS(d.front, LANG_B_CODE);
+    // Read actual displayed languages from DOM (avoids Mix randomness mismatch)
+    if (mode === 'flip' && currentIndex < queue.length) {
+        var frontLangName = document.getElementById('frontLang').textContent;
+        var backLangName = document.getElementById('backLang').textContent;
+        currentFrontLangCode = (frontLangName === LANG_A) ? LANG_A_CODE : LANG_B_CODE;
+        currentBackLangCode = (backLangName === LANG_A) ? LANG_A_CODE : LANG_B_CODE;
+        // Hide speak/explain buttons for Czech
+        document.getElementById('frontSpeakBtn').style.display = currentFrontLangCode === 'cs' ? 'none' : '';
+        document.getElementById('backSpeakBtn').style.display = currentBackLangCode === 'cs' ? 'none' : '';
+        var frontExpl = document.getElementById('frontExplainBtn');
+        var backExpl = document.getElementById('backExplainBtn');
+        if (frontExpl) frontExpl.style.display = currentFrontLangCode === 'cs' ? 'none' : '';
+        if (backExpl) backExpl.style.display = currentBackLangCode === 'cs' ? 'none' : '';
+        // Auto-speak foreign word when it's on the front
+        if (autoSpeak && frontLangName === LANG_B) {
+            playTTS(document.getElementById('frontWord').textContent, currentFrontLangCode);
         }
     }
 };
@@ -496,5 +519,39 @@ flipCard = function() {
         }
     }
 };
+
+// --- Explain ---
+function explainCurrent(side) {
+    var word = side === 'front'
+        ? document.getElementById('frontWord').textContent
+        : document.getElementById('backWord').textContent;
+    var lang = side === 'front'
+        ? document.getElementById('frontLang').textContent
+        : document.getElementById('backLang').textContent;
+    document.getElementById('explainTitle').textContent = word;
+    document.getElementById('explainContent').textContent = 'Načítám...';
+    document.getElementById('explainModal').classList.add('active');
+    fetch('/ai/explain', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({word: word, lang: lang})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        document.getElementById('explainContent').textContent = data.explanation || data.error || 'Chyba';
+    })
+    .catch(function() { document.getElementById('explainContent').textContent = 'Chyba spojení'; });
+}
+
+function closeExplainModal() {
+    document.getElementById('explainModal').classList.remove('active');
+}
+
+var _explainModal = document.getElementById('explainModal');
+if (_explainModal) {
+    _explainModal.addEventListener('click', function(e) {
+        if (e.target === this) closeExplainModal();
+    });
+}
 </script>
 {% endblock %}

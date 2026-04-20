@@ -32,12 +32,15 @@
 
     <div class="card">
         <h2 style="margin-bottom: 8px;">Vložit text</h2>
+        <p style="color: var(--text-light); font-size: 0.85rem; margin-bottom: 16px;">
+            Formát: <code>{{ ws.lang_a_name }};{{ ws.lang_b_name }}</code> — jeden pár na řádek.
+        </p>
         <form method="POST">
             <div class="form-group">
                 <label>Slovíčka</label>
-                <textarea name="text" rows="12" placeholder="DECIR;říkat
-DAR;dát
-IR;jít/jet" style="width:100%; padding:12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; resize:vertical; outline:none;"></textarea>
+                <textarea name="text" rows="12" placeholder="říkat;DECIR
+dát;DAR
+jít/jet;IR" style="width:100%; padding:12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; resize:vertical; outline:none;"></textarea>
             </div>
             <button type="submit" class="btn btn-primary btn-block">Importovat</button>
         </form>
